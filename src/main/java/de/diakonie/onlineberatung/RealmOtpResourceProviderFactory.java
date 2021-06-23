@@ -17,17 +17,17 @@ public class RealmOtpResourceProviderFactory implements RealmResourceProviderFac
 
   @Override
   public void init(Scope scope) {
-
+    // Do nothing because it is not needed
   }
 
   @Override
   public void postInit(KeycloakSessionFactory keycloakSessionFactory) {
-
+    // Do nothing because it is not needed
   }
 
   @Override
   public void close() {
-
+    // Do nothing because it is not needed
   }
 
   @Override
