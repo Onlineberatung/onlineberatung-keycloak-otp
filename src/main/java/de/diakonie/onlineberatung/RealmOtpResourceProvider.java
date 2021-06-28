@@ -1,7 +1,10 @@
 package de.diakonie.onlineberatung;
 
+import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.Error;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpInfoDTO;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpSetupDTO;
+import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.Success;
+import java.util.Objects;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.ForbiddenException;
@@ -16,6 +19,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
+import org.keycloak.models.RoleModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.credential.OTPCredentialModel;
 import org.keycloak.models.utils.CredentialValidation;
@@ -31,6 +35,9 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
   public static final int KEY_LENGTH = 32;
   public static final String ROLE_REQUIRED = "technical";
 
+  private static final String MISSING_USERNAME_ERROR = "invalid_parameter";
+  private static final String MISSING_USERNAME_ERROR_DESCRIPTION = "username not found";
+
   private final KeycloakSession session;
 
   public RealmOtpResourceProvider(KeycloakSession session) {
@@ -45,6 +52,11 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
 
     final RealmModel realm = this.session.getContext().getRealm();
     final UserModel user = this.session.users().getUserByUsername(username, realm);
+
+    if (Objects.isNull(user)) {
+      return Response.status(Status.BAD_REQUEST).entity(new Error().error(MISSING_USERNAME_ERROR)
+          .errorDescription(MISSING_USERNAME_ERROR_DESCRIPTION)).build();
+    }
 
     var otpInfoDTO = new OtpInfoDTO();
     otpInfoDTO.setOtpSetup(
@@ -68,6 +80,11 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
     final RealmModel realm = this.session.getContext().getRealm();
     final UserModel user = this.session.users().getUserByUsername(username, realm);
 
+    if (Objects.isNull(user)) {
+        return Response.status(Status.BAD_REQUEST).entity(new Error().error(MISSING_USERNAME_ERROR)
+            .errorDescription(MISSING_USERNAME_ERROR_DESCRIPTION)).build();
+    }
+
     if (!this.session.userCredentialManager()
         .isConfiguredFor(realm, user, OTPCredentialModel.TYPE)) {
 
@@ -76,16 +93,20 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
 
       if (!CredentialValidation.validOTP(dto.getInitialCode(), otpCredentialModel,
           realm.getOTPPolicy().getLookAheadWindow())) {
-        return Response.status(Status.UNAUTHORIZED).entity("Invalid otp code").build();
+        return Response.status(Status.UNAUTHORIZED)
+            .entity(new Error().error("invalid_grant").errorDescription("Invalid otp code"))
+            .build();
       }
 
       CredentialHelper
           .createOTPCredential(this.session, realm, user, dto.getInitialCode(), otpCredentialModel);
 
-      return Response.status(Status.CREATED).entity("OTP credential created").build();
+      return Response.status(Status.CREATED).entity(new Success().info("OTP credential created"))
+          .build();
     }
 
-    return Response.ok("OTP credential is already configured for this User").build();
+    return Response.ok(new Success().info("OTP credential is already configured for this User"))
+        .build();
   }
 
   @DELETE
@@ -95,9 +116,15 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
 
     final RealmModel realm = this.session.getContext().getRealm();
     final UserModel user = this.session.users().getUserByUsername(username, realm);
+
+    if (Objects.isNull(user)) {
+        return Response.status(Status.BAD_REQUEST).entity(new Error().error(MISSING_USERNAME_ERROR)
+            .errorDescription(MISSING_USERNAME_ERROR_DESCRIPTION)).build();
+    }
+
     deleteAllOtpCredentials(realm, user);
 
-    return Response.ok("success").build();
+    return Response.ok(new Success().info("OTP credential deleted")).build();
   }
 
   private void deleteAllOtpCredentials(RealmModel realm, UserModel user) {
@@ -113,9 +140,10 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
 
     if (auth == null) {
       throw new NotAuthorizedException("Bearer");
-    } else if (auth.getToken().getRealmAccess() == null || !auth.getToken().getRealmAccess()
-        .isUserInRole(
-            ROLE_REQUIRED)) {
+    } else if (Objects.isNull(auth.getUser()) || Objects.isNull(auth.getUser().getRoleMappings())
+        || auth.getUser().getRoleMappings().stream().map(RoleModel::getName)
+        .noneMatch(name -> Objects.equals(name, ROLE_REQUIRED))) {
+
       throw new ForbiddenException("Does not have required role");
     }
   }
