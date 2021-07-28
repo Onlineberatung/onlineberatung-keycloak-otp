@@ -90,7 +90,7 @@
           <descriptorRefs>
             <descriptorRef>jar-with-dependencies</descriptorRef>
           </descriptorRefs>
-          <finalName>${project.build.finalName}-keycloack</finalName>
+          <finalName>${project.build.finalName}-keycloak</finalName>
           <appendAssemblyId>false</appendAssemblyId>
           <archive>
             <manifestEntries>
