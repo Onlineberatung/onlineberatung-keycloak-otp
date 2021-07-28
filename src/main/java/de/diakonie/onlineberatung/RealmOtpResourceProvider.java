@@ -24,7 +24,7 @@ import org.keycloak.models.UserModel;
 import org.keycloak.models.credential.OTPCredentialModel;
 import org.keycloak.models.utils.CredentialValidation;
 import org.keycloak.models.utils.HmacOTP;
-import org.keycloak.services.managers.AppAuthManager;
+import org.keycloak.services.managers.AppAuthManager.BearerTokenAuthenticator;
 import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.services.resource.RealmResourceProvider;
 import org.keycloak.utils.CredentialHelper;
@@ -51,7 +51,7 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
     verifyAuthentication();
 
     final RealmModel realm = this.session.getContext().getRealm();
-    final UserModel user = this.session.users().getUserByUsername(username, realm);
+    final UserModel user = this.session.users().getUserByUsername(realm, username);
 
     if (Objects.isNull(user)) {
       return Response.status(Status.BAD_REQUEST).entity(new Error().error(MISSING_USERNAME_ERROR)
@@ -74,11 +74,12 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
   @PUT
   @Path("setup-otp/{username}")
   @Consumes({MediaType.APPLICATION_JSON})
+  @Produces({MediaType.APPLICATION_JSON})
   public Response setupOtp(@PathParam("username") final String username, final OtpSetupDTO dto) {
     verifyAuthentication();
 
     final RealmModel realm = this.session.getContext().getRealm();
-    final UserModel user = this.session.users().getUserByUsername(username, realm);
+    final UserModel user = this.session.users().getUserByUsername(realm, username);
 
     if (Objects.isNull(user)) {
         return Response.status(Status.BAD_REQUEST).entity(new Error().error(MISSING_USERNAME_ERROR)
@@ -111,11 +112,12 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
 
   @DELETE
   @Path("delete-otp/{username}")
+  @Produces({MediaType.APPLICATION_JSON})
   public Response deleteOtp(@PathParam("username") final String username) {
     verifyAuthentication();
 
     final RealmModel realm = this.session.getContext().getRealm();
-    final UserModel user = this.session.users().getUserByUsername(username, realm);
+    final UserModel user = this.session.users().getUserByUsername(realm, username);
 
     if (Objects.isNull(user)) {
         return Response.status(Status.BAD_REQUEST).entity(new Error().error(MISSING_USERNAME_ERROR)
@@ -129,19 +131,18 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
 
   private void deleteAllOtpCredentials(RealmModel realm, UserModel user) {
     this.session.userCredentialManager().
-        getStoredCredentialsByType(realm, user, OTPCredentialModel.TYPE).
+        getStoredCredentialsByTypeStream(realm, user, OTPCredentialModel.TYPE).
         forEach(credentialModel -> CredentialHelper
             .deleteOTPCredential(this.session, realm, user, credentialModel.getId()));
   }
 
   private void verifyAuthentication() {
-    final AuthenticationManager.AuthResult auth = new AppAuthManager()
-        .authenticateBearerToken(session);
+    final AuthenticationManager.AuthResult auth = new BearerTokenAuthenticator(session).authenticate();
 
     if (auth == null) {
       throw new NotAuthorizedException("Bearer");
-    } else if (Objects.isNull(auth.getUser()) || Objects.isNull(auth.getUser().getRoleMappings())
-        || auth.getUser().getRoleMappings().stream().map(RoleModel::getName)
+    } else if (Objects.isNull(auth.getUser()) || auth.getUser().getRoleMappingsStream()
+        .map(RoleModel::getName)
         .noneMatch(name -> Objects.equals(name, ROLE_REQUIRED))) {
 
       throw new ForbiddenException("Does not have required role");
