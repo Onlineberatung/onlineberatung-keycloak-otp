@@ -51,6 +51,14 @@
       <version>${keycloak.version}</version>
       <scope>provided</scope>
     </dependency>
+
+    <!-- prevents log4j dependency from openshift-restclient-java:8.0.0.Final: -->
+    <dependency>
+      <groupId>com.openshift</groupId>
+      <artifactId>openshift-restclient-java</artifactId>
+      <version>9.0.2.Final</version>
+    </dependency>
+
   </dependencies>
   <build>
     <plugins>
