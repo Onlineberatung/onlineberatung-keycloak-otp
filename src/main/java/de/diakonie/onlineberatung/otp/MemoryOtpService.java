@@ -31,7 +31,8 @@ public class MemoryOtpService implements OtpService {
   }
 
   @Override
-  public Otp createOtp(@Nullable AuthenticatorConfigModel authConfig, String emailAddress) {
+  public Otp createOtp(@Nullable AuthenticatorConfigModel authConfig, String username,
+      String emailAddress) {
     var length = DEFAULT_CODE_LENGTH;
     var ttlInSeconds = DEFAULT_TTL_IN_SECONDS;
     if (nonNull(authConfig)) {
@@ -39,51 +40,56 @@ public class MemoryOtpService implements OtpService {
       ttlInSeconds = Integer.parseInt(authConfig.getConfig().get("ttl"));
     }
     // invalidate potential already present code
-    invalidate(emailAddress);
+    invalidate(username);
 
     var code = generator.generate(length);
     var expiry = clock.millis() + (ttlInSeconds * SECOND_IN_MILLIS);
-    var otp = new Otp(code, ttlInSeconds, expiry);
-    otpStore.put(emailAddress.toLowerCase(), otp);
+    var otp = new Otp(code, ttlInSeconds, expiry, emailAddress);
+    otpStore.put(username.toLowerCase(), otp);
     return otp;
   }
 
   @Override
-  public ValidationResult validate(String currentCode, String emailAddress) {
+  public Otp get(String username) {
+    return otpStore.get(username.toLowerCase());
+  }
+
+  @Override
+  public ValidationResult validate(String currentCode, String username) {
     if (isNull(currentCode) || currentCode.isBlank()) {
       return INVALID;
     }
-    if (isNull(emailAddress) || emailAddress.isBlank()) {
+    if (isNull(username) || username.isBlank()) {
       return NOT_PRESENT;
     }
 
-    var sentOtp = otpStore.get(emailAddress.toLowerCase());
-    if (isNull(sentOtp) || isNull(sentOtp.getCode())) {
+    var storedOtp = get(username);
+    if (isNull(storedOtp) || isNull(storedOtp.getCode())) {
       return NOT_PRESENT;
     }
 
-    if (isExpired(sentOtp.getExpiry())) {
+    if (isExpired(storedOtp.getExpiry())) {
       return EXPIRED;
     }
 
-    if (!sentOtp.getCode().equals(currentCode)) {
-      if (sentOtp.incAndGetFailedVerifications() > MAX_FAILED_VALIDATIONS) {
-        invalidate(emailAddress);
+    if (!storedOtp.getCode().equals(currentCode)) {
+      if (storedOtp.incAndGetFailedVerifications() > MAX_FAILED_VALIDATIONS) {
+        invalidate(username);
         return TOO_MANY_FAILED_ATTEMPTS;
       }
       return INVALID;
     }
 
-    invalidate(emailAddress);
+    invalidate(username);
     return VALID;
   }
 
   @Override
-  public void invalidate(String emailAddress) {
-    if (isNull(emailAddress) || emailAddress.isBlank()) {
+  public void invalidate(String username) {
+    if (isNull(username) || username.isBlank()) {
       return;
     }
-    otpStore.remove(emailAddress.toLowerCase());
+    otpStore.remove(username.toLowerCase());
   }
 
   private boolean isExpired(long expiry) {

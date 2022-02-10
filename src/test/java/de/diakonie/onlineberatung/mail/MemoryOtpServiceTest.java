@@ -41,10 +41,10 @@ public class MemoryOtpServiceTest {
   public void should_create_and_store_otp_with_default_ttl_and_expiry() {
     when(otpGenerator.generate(6)).thenReturn("123456");
 
-    var otp = memoryOtpService.createOtp(null, "hk@test.de");
+    var otp = memoryOtpService.createOtp(null, "Ansgar", "hk@test.de");
 
-    var expected = new Otp("123456", 300, 1643894280000L);
-    assertThat(otpStore.get("hk@test.de")).isEqualTo(expected);
+    var expected = new Otp("123456", 300, 1643894280000L, "hk@test.de");
+    assertThat(otpStore.get("ansgar")).isEqualTo(expected);
     verify(otpGenerator).generate(6);
     assertThat(otp).isEqualTo(expected);
   }
@@ -58,52 +58,52 @@ public class MemoryOtpServiceTest {
     internalConfig.put("length", "8");
     when(otpGenerator.generate(8)).thenReturn("12345678");
 
-    var otp = memoryOtpService.createOtp(authConfig, "hk@test.de");
+    var otp = memoryOtpService.createOtp(authConfig, "Ansgar", "hk@test.de");
 
-    var expected = new Otp("12345678", 500, 1643894480000L);
-    assertThat(otpStore.get("hk@test.de")).isEqualTo(expected);
+    var expected = new Otp("12345678", 500, 1643894480000L, "hk@test.de");
+    assertThat(memoryOtpService.get("Ansgar")).isEqualTo(expected);
     assertThat(otp).isEqualTo(expected);
   }
 
   @Test
   public void validate_should_be_valid_if_otp_stored_equals_current_and_is_not_expired() {
-    otpStore.put("hk@test.de", new Otp("4711", 300, fixed.millis() + 1000));
+    otpStore.put("creativeusername", new Otp("4711", 300, fixed.millis() + 1000, "hk@test.de"));
 
-    var result = memoryOtpService.validate("4711", "hk@test.de");
+    var result = memoryOtpService.validate("4711", "creativeusername");
 
     assertThat(result).isEqualTo(ValidationResult.VALID);
-    assertThat(memoryOtpService.validate("4711", "hk@test.de")).isEqualTo(NOT_PRESENT);
+    assertThat(memoryOtpService.validate("4711", "creativeusername")).isEqualTo(NOT_PRESENT);
   }
 
   @Test
   public void validate_should_be_not_present_if_otp_was_not_stored() {
-    var result = memoryOtpService.validate("4711", "hk@test.de");
+    var result = memoryOtpService.validate("4711", "creativeUsername");
 
     assertThat(result).isEqualTo(NOT_PRESENT);
   }
 
   @Test
   public void validate_should_return_expired_if_otp_is_expired() {
-    otpStore.put("hk@test.de", new Otp("4711", 3000, fixed.millis() - 1000));
+    otpStore.put("creativeusername", new Otp("4711", 3000, fixed.millis() - 1000, "hk@test.de"));
 
-    var result = memoryOtpService.validate("4711", "hk@test.de");
+    var result = memoryOtpService.validate("4711", "creativeusername");
 
     assertThat(result).isEqualTo(ValidationResult.EXPIRED);
   }
 
   @Test
   public void validate_should_be_invalid_if_stored_otp_does_not_equal_current() {
-    otpStore.put("hk@test.de", new Otp("1234", 3000, fixed.millis() + 1000));
+    otpStore.put("creativeusername", new Otp("1234", 3000, fixed.millis() + 1000, "hk@test.de"));
 
-    var result = memoryOtpService.validate("4711", "hk@test.de");
+    var result = memoryOtpService.validate("4711", "creativeusername");
 
     assertThat(result).isEqualTo(INVALID);
   }
 
   @Test
   public void validate_should_be_invalid_on_empty_or_null_current_code() {
-    assertThat(memoryOtpService.validate(null, "someEmail")).isEqualTo(INVALID);
-    assertThat(memoryOtpService.validate("", "someEmail")).isEqualTo(INVALID);
+    assertThat(memoryOtpService.validate(null, "creativeusername")).isEqualTo(INVALID);
+    assertThat(memoryOtpService.validate("", "creativeusername")).isEqualTo(INVALID);
   }
 
   @Test
@@ -114,12 +114,12 @@ public class MemoryOtpServiceTest {
 
   @Test
   public void validate_should_invalidate_otp_after_three_failed_validations() {
-    otpStore.put("hk@test.de", new Otp("4711", 300, fixed.millis() + 1000));
+    otpStore.put("creativeusername", new Otp("4711", 300, fixed.millis() + 1000, "hk@test.de"));
 
-    assertThat(memoryOtpService.validate("1", "hk@test.de")).isEqualTo(INVALID);
-    assertThat(memoryOtpService.validate("2", "hk@test.de")).isEqualTo(INVALID);
-    assertThat(memoryOtpService.validate("3", "hk@test.de")).isEqualTo(INVALID);
-    assertThat(memoryOtpService.validate("4", "hk@test.de")).isEqualTo(TOO_MANY_FAILED_ATTEMPTS);
-    assertThat(memoryOtpService.validate("4711", "hk@test.de")).isEqualTo(NOT_PRESENT);
+    assertThat(memoryOtpService.validate("1", "creativeusername")).isEqualTo(INVALID);
+    assertThat(memoryOtpService.validate("2", "creativeusername")).isEqualTo(INVALID);
+    assertThat(memoryOtpService.validate("3", "creativeusername")).isEqualTo(INVALID);
+    assertThat(memoryOtpService.validate("4", "creativeusername")).isEqualTo(TOO_MANY_FAILED_ATTEMPTS);
+    assertThat(memoryOtpService.validate("4711", "creativeusername")).isEqualTo(NOT_PRESENT);
   }
 }
