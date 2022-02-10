@@ -1,4 +1,4 @@
-package de.diakonie.onlineberatung.mail;
+package de.diakonie.onlineberatung.otp;
 
 import static de.diakonie.onlineberatung.otp.ValidationResult.INVALID;
 import static de.diakonie.onlineberatung.otp.ValidationResult.NOT_PRESENT;
