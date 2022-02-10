@@ -1,4 +1,4 @@
-package de.diakonie.onlineberatung.mail;
+package de.diakonie.onlineberatung.otp;
 
 import de.diakonie.onlineberatung.otp.Otp;
 import org.keycloak.models.KeycloakSession;

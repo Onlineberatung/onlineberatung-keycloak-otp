@@ -10,7 +10,7 @@ import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.gene
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpType;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.Success;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.SuccessWithEmail;
-import de.diakonie.onlineberatung.mail.OtpMailSender;
+import de.diakonie.onlineberatung.otp.OtpMailSender;
 import de.diakonie.onlineberatung.otp.OtpService;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;

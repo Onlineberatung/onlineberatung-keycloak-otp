@@ -6,7 +6,7 @@ import static org.mockito.Mockito.when;
 
 import de.diakonie.onlineberatung.authenticator.SessionAuthenticator;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpSetupDTO;
-import de.diakonie.onlineberatung.mail.OtpMailSender;
+import de.diakonie.onlineberatung.otp.OtpMailSender;
 import de.diakonie.onlineberatung.otp.OtpService;
 import de.diakonie.onlineberatung.otp.ValidationResult;
 import java.util.Arrays;
