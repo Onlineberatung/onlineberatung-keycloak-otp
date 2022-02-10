@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 import de.diakonie.onlineberatung.authenticator.SessionAuthenticator;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpSetupDTO;
 import de.diakonie.onlineberatung.otp.OtpMailSender;
+import de.diakonie.onlineberatung.otp.Otp;
 import de.diakonie.onlineberatung.otp.OtpService;
 import de.diakonie.onlineberatung.otp.ValidationResult;
 import java.util.Arrays;
@@ -51,6 +52,7 @@ public class RealmOtpResourceProviderParameterizedTest {
   public void setUp() {
     var session = mock(KeycloakSession.class);
     otpService = mock(OtpService.class);
+    when(otpService.get("heinrich")).thenReturn(new Otp("",1L,2L,"maik@test.de"));
     var mailSender = mock(OtpMailSender.class);
     var sessionAuthenticator = mock(SessionAuthenticator.class);
     var keycloakContext = mock(KeycloakContext.class);
@@ -69,7 +71,7 @@ public class RealmOtpResourceProviderParameterizedTest {
   public void setupOtpMail_response_on_validation_result() {
     var mailSetup = new OtpSetupDTO();
     mailSetup.setEmail("hk@test.de");
-    when(otpService.validate(mailSetup.getInitialCode(), "hk@test.de")).thenReturn(input);
+    when(otpService.validate(mailSetup.getInitialCode(), "heinrich")).thenReturn(input);
 
     var response = resourceProvider.setupOtpMail("heinrich", mailSetup);
 

@@ -178,11 +178,11 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
 
     try {
       var authConfig = realm.getAuthenticatorConfigByAlias(OTP_CONFIG_ALIAS);
-      var otp = otpService.createOtp(authConfig, mailSetup.getEmail());
+      var otp = otpService.createOtp(authConfig, username, mailSetup.getEmail());
       mailSender.sendOtpCode(otp, session, user, emailAddress);
     } catch (Exception e) {
       e.printStackTrace();
-      otpService.invalidate(mailSetup.getEmail());
+      otpService.invalidate(username);
       return Response.status(Status.INTERNAL_SERVER_ERROR).entity(new Error().error(FAILED_TO_SENT))
           .build();
     }
@@ -206,12 +206,7 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
           .errorDescription(MISSING_USERNAME_ERROR_DESCRIPTION)).build();
     }
 
-    if (isNull(mailSetup.getEmail()) || mailSetup.getEmail().isBlank()) {
-      return Response.status(Status.BAD_REQUEST).entity(new Error().error(MISSING_PARAMETER_ERROR)
-          .errorDescription(MISSING_EMAIL_ADDRESS_ERROR_DESCRIPTION)).build();
-    }
-
-    return verifyInitialMailOtp(mailSetup, user);
+    return verifyInitialMailOtp(mailSetup.getInitialCode(), username, user);
   }
 
   private void deleteAllOtpCredentials(RealmModel realm, UserModel user) {
@@ -236,8 +231,9 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
     // Do nothing because it is not needed
   }
 
-  private Response verifyInitialMailOtp(OtpSetupDTO mailSetup, UserModel user) {
-    var validationResult = otpService.validate(mailSetup.getInitialCode(), mailSetup.getEmail());
+  private Response verifyInitialMailOtp(String initialCode, String username, UserModel user) {
+    var otp = otpService.get(username);
+    var validationResult = otpService.validate(initialCode, username);
     switch (validationResult) {
       case NOT_PRESENT:
         return Response.status(Status.UNAUTHORIZED).entity(
@@ -255,7 +251,7 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
       case VALID:
         user.setSingleAttribute(OTP_MAIL_AUTHENTICATION_ATTRIBUTE, "true");
         return Response.status(Status.CREATED)
-            .entity(new SuccessWithEmail().email(mailSetup.getEmail()).info("OTP setup created"))
+            .entity(new SuccessWithEmail().email(otp.getEmail()).info("OTP setup created"))
             .build();
       default:
         return Response.status(Status.INTERNAL_SERVER_ERROR)
