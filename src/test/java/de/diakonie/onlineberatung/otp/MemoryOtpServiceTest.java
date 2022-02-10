@@ -8,11 +8,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import de.diakonie.onlineberatung.otp.MemoryOtpService;
-import de.diakonie.onlineberatung.otp.Otp;
-import de.diakonie.onlineberatung.otp.OtpGenerator;
-import de.diakonie.onlineberatung.otp.OtpStore;
-import de.diakonie.onlineberatung.otp.ValidationResult;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -121,7 +116,8 @@ public class MemoryOtpServiceTest {
     assertThat(memoryOtpService.validate("1", "creativeusername")).isEqualTo(INVALID);
     assertThat(memoryOtpService.validate("2", "creativeusername")).isEqualTo(INVALID);
     assertThat(memoryOtpService.validate("3", "creativeusername")).isEqualTo(INVALID);
-    assertThat(memoryOtpService.validate("4", "creativeusername")).isEqualTo(TOO_MANY_FAILED_ATTEMPTS);
+    assertThat(memoryOtpService.validate("4", "creativeusername")).isEqualTo(
+        TOO_MANY_FAILED_ATTEMPTS);
     assertThat(memoryOtpService.validate("4711", "creativeusername")).isEqualTo(NOT_PRESENT);
   }
 
