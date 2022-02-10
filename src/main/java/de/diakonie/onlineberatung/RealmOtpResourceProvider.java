@@ -155,8 +155,8 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
     return Response.ok(new Success().info("OTP credential deleted")).build();
   }
 
-  @POST
-  @Path("send-otp-mail/{username}")
+  @PUT
+  @Path("send-verification-mail/{username}")
   @Produces({MediaType.APPLICATION_JSON})
   public Response sendVerificationMail(@PathParam("username") final String username,
       final OtpSetupDTO mailSetup) {
@@ -190,7 +190,7 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
         .build();
   }
 
-  @PUT
+  @POST
   @Path("setup-otp-mail/{username}")
   @Consumes({MediaType.APPLICATION_JSON})
   @Produces({MediaType.APPLICATION_JSON})
