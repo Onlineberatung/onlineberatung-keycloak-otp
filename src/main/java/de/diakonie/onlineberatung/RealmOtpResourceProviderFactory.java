@@ -2,8 +2,8 @@ package de.diakonie.onlineberatung;
 
 import de.diakonie.onlineberatung.authenticator.BearerTokenSessionAuthenticator;
 import de.diakonie.onlineberatung.mail.DefaultMailSender;
+import de.diakonie.onlineberatung.otp.MapBasedOtpStore;
 import de.diakonie.onlineberatung.otp.MemoryOtpService;
-import de.diakonie.onlineberatung.otp.OtpStore;
 import de.diakonie.onlineberatung.otp.RandomDigitsCodeGenerator;
 import java.time.Clock;
 import org.keycloak.Config.Scope;
@@ -21,7 +21,8 @@ public class RealmOtpResourceProviderFactory implements RealmResourceProviderFac
     var systemClock = Clock.systemDefaultZone();
     var otpGenerator = new RandomDigitsCodeGenerator();
     var mailSender = new DefaultMailSender();
-    var otpMailService = new MemoryOtpService(OtpStore.getInstance(), otpGenerator, systemClock);
+    var otpMailService = new MemoryOtpService(MapBasedOtpStore.getInstance(), otpGenerator,
+        systemClock);
     return new RealmOtpResourceProvider(keycloakSession, otpMailService, mailSender,
         new BearerTokenSessionAuthenticator());
   }

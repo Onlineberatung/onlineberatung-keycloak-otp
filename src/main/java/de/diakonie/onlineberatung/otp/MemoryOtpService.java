@@ -9,7 +9,6 @@ import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
 
 import java.time.Clock;
-import java.util.Map;
 import javax.annotation.Nullable;
 import org.keycloak.models.AuthenticatorConfigModel;
 
@@ -20,11 +19,11 @@ public class MemoryOtpService implements OtpService {
   private static final int MAX_FAILED_VALIDATIONS = 3;
   private static final long SECOND_IN_MILLIS = 1000L;
 
-  private final Map<String, Otp> otpStore;
+  private final OtpStore otpStore;
   private final OtpGenerator generator;
   private final Clock clock;
 
-  public MemoryOtpService(Map<String, Otp> otpStore, OtpGenerator generator, Clock clock) {
+  public MemoryOtpService(OtpStore otpStore, OtpGenerator generator, Clock clock) {
     this.otpStore = otpStore;
     this.generator = generator;
     this.clock = clock;

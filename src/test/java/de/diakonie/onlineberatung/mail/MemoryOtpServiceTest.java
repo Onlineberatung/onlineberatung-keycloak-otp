@@ -11,19 +11,21 @@ import static org.mockito.Mockito.when;
 import de.diakonie.onlineberatung.otp.MemoryOtpService;
 import de.diakonie.onlineberatung.otp.Otp;
 import de.diakonie.onlineberatung.otp.OtpGenerator;
+import de.diakonie.onlineberatung.otp.OtpStore;
 import de.diakonie.onlineberatung.otp.ValidationResult;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.HashMap;
+import java.util.Map;
 import org.junit.Before;
 import org.junit.Test;
 import org.keycloak.models.AuthenticatorConfigModel;
 
 public class MemoryOtpServiceTest {
 
-  private HashMap<String, Otp> otpStore;
+  private OtpStore otpStore;
   private MemoryOtpService memoryOtpService;
   private OtpGenerator otpGenerator;
   private Clock fixed;
@@ -32,7 +34,7 @@ public class MemoryOtpServiceTest {
   public void setUp() {
     fixed = Clock.fixed(LocalDateTime.of(2022, 2, 3, 13, 13, 0).toInstant(ZoneOffset.UTC),
         ZoneId.of("UTC"));
-    otpStore = new HashMap<>();
+    otpStore = new TestOtpStore(new HashMap<>());
     otpGenerator = mock(OtpGenerator.class);
     memoryOtpService = new MemoryOtpService(otpStore, otpGenerator, fixed);
   }
@@ -121,5 +123,29 @@ public class MemoryOtpServiceTest {
     assertThat(memoryOtpService.validate("3", "hk@test.de")).isEqualTo(INVALID);
     assertThat(memoryOtpService.validate("4", "hk@test.de")).isEqualTo(TOO_MANY_FAILED_ATTEMPTS);
     assertThat(memoryOtpService.validate("4711", "hk@test.de")).isEqualTo(NOT_PRESENT);
+  }
+
+  private static class TestOtpStore implements OtpStore {
+
+    private final Map<String, Otp> store;
+
+    TestOtpStore(Map<String, Otp> store) {
+      this.store = store;
+    }
+
+    @Override
+    public void put(String key, Otp otp) {
+      store.put(key, otp);
+    }
+
+    @Override
+    public Otp get(String key) {
+      return store.get(key);
+    }
+
+    @Override
+    public void remove(String key) {
+      store.remove(key);
+    }
   }
 }
