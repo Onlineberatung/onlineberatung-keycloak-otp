@@ -1,7 +1,11 @@
 package de.diakonie.onlineberatung.authenticator;
 
+import static de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpType.APP;
+
+import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.Challenge;
 import java.util.Collections;
 import java.util.List;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
@@ -18,7 +22,7 @@ import org.keycloak.provider.ProviderConfigProperty;
 public class OtpParameterAuthenticator extends AbstractDirectGrantAuthenticator {
 
   public static final String ID = "otp-parameter-authenticator";
-  AuthenticationExecutionModel.Requirement[] REQUIREMENT_CHOICES = {
+  final AuthenticationExecutionModel.Requirement[] REQUIREMENT_CHOICES = {
       AuthenticationExecutionModel.Requirement.REQUIRED};
 
   @Override
@@ -33,10 +37,11 @@ public class OtpParameterAuthenticator extends AbstractDirectGrantAuthenticator 
     otp = (otp == null) ? inputData.getFirst("totp") : otp;
 
     if (otp == null) {
-      Response challengeResponse = errorResponse(Status.BAD_REQUEST.getStatusCode(),
-          "invalid_grant", "Missing totp");
-      context.failure(
-          AuthenticationFlowError.INVALID_CREDENTIALS, challengeResponse);
+      Challenge challengeResponse = new Challenge().error("invalid_grant")
+          .errorDescription("Missing totp").otpType(APP);
+      context.failure(AuthenticationFlowError.INVALID_CREDENTIALS,
+          Response.status(Status.BAD_REQUEST).entity(challengeResponse)
+              .type(MediaType.APPLICATION_JSON_TYPE).build());
       return;
     }
     context.success();
