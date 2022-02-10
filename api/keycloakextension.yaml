@@ -98,7 +98,7 @@ paths:
                 $ref: '#/components/schemas/Error'
 
   /otp-config/send-verification-mail/{username}:
-    post:
+    put:
       summary: 'Send an email to the user containing an OTP'
       operationId: sendVerificationMail
       requestBody:
