@@ -31,14 +31,14 @@ public class MemoryOtpServiceTest {
         ZoneId.of("UTC"));
     otpStore = new TestOtpStore(new HashMap<>());
     otpGenerator = mock(OtpGenerator.class);
-    memoryOtpService = new MemoryOtpService(otpStore, otpGenerator, fixed);
+    memoryOtpService = new MemoryOtpService(otpStore, otpGenerator, fixed, null);
   }
 
   @Test
   public void should_create_and_store_otp_with_default_ttl_and_expiry() {
     when(otpGenerator.generate(6)).thenReturn("123456");
 
-    var otp = memoryOtpService.createOtp(null, "Ansgar", "hk@test.de");
+    var otp = memoryOtpService.createOtp("Ansgar", "hk@test.de");
 
     var expected = new Otp("123456", 300, 1643894280000L, "hk@test.de");
     assertThat(otpStore.get("ansgar")).isEqualTo(expected);
@@ -53,9 +53,10 @@ public class MemoryOtpServiceTest {
     when(authConfig.getConfig()).thenReturn(internalConfig);
     internalConfig.put("ttl", "500");
     internalConfig.put("length", "8");
+    memoryOtpService = new MemoryOtpService(otpStore, otpGenerator, fixed, authConfig);
     when(otpGenerator.generate(8)).thenReturn("12345678");
 
-    var otp = memoryOtpService.createOtp(authConfig, "Ansgar", "hk@test.de");
+    var otp = memoryOtpService.createOtp("Ansgar", "hk@test.de");
 
     var expected = new Otp("12345678", 500, 1643894480000L, "hk@test.de");
     assertThat(memoryOtpService.get("Ansgar")).isEqualTo(expected);

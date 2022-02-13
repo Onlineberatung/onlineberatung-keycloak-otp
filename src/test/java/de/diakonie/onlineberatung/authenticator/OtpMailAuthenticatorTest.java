@@ -78,7 +78,7 @@ public class OtpMailAuthenticatorTest {
     when(authFlow.getUser()).thenReturn(user);
     var expectedOtp = new Otp("123", 200L, 123456L, "mymail@test.de");
 
-    when(otpService.createOtp(null, "Karen", "mymail@test.de")).thenReturn(expectedOtp);
+    when(otpService.createOtp("Karen", "mymail@test.de")).thenReturn(expectedOtp);
 
     authenticator.authenticate(authFlow);
 
@@ -98,7 +98,7 @@ public class OtpMailAuthenticatorTest {
     when(user.getEmail()).thenReturn("mymail@test.de");
     when(authFlow.getUser()).thenReturn(user);
     var expectedOtp = new Otp("123", 200L, 123456L, "mymail@test.de");
-    when(otpService.createOtp(null, "Karen", "mymail@test.de")).thenReturn(expectedOtp);
+    when(otpService.createOtp("Karen", "mymail@test.de")).thenReturn(expectedOtp);
     doThrow(IOException.class).when(mailSender).sendOtpCode(any(), any(), any(), any());
 
     authenticator.authenticate(authFlow);

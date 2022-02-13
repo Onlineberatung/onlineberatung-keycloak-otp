@@ -57,7 +57,7 @@ public class RealmOtpResourceProviderTest {
     var mailSetup = new OtpSetupDTO();
     mailSetup.setEmail("hk@test.de");
     var otp = new Otp("123", 450L, 1234567L, "hk@test.de");
-    when(otpService.createOtp(null, "heinrich", "hk@test.de")).thenReturn(otp);
+    when(otpService.createOtp("heinrich", "hk@test.de")).thenReturn(otp);
 
     var response = resourceProvider.sendVerificationMail("heinrich", mailSetup);
 
@@ -88,7 +88,7 @@ public class RealmOtpResourceProviderTest {
     var mailSetup = new OtpSetupDTO();
     mailSetup.setEmail("hk@test.de");
     var otp = new Otp("123", 450L, 1234567L, "hk@test.de");
-    when(otpService.createOtp(null, "heinrich", "hk@test.de")).thenReturn(otp);
+    when(otpService.createOtp("heinrich", "hk@test.de")).thenReturn(otp);
     doThrow(IOException.class).when(mailSender).sendOtpCode(any(), any(), any(), any());
 
     var response = resourceProvider.sendVerificationMail("heinrich", mailSetup);

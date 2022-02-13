@@ -1,5 +1,6 @@
 package de.diakonie.onlineberatung.authenticator;
 
+import static de.diakonie.onlineberatung.RealmOtpResourceProvider.OTP_CONFIG_ALIAS;
 import static java.util.Arrays.asList;
 
 import de.diakonie.onlineberatung.mail.DefaultMailSender;
@@ -13,6 +14,7 @@ import org.keycloak.Config;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.authentication.AuthenticatorFactory;
 import org.keycloak.models.AuthenticationExecutionModel;
+import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.provider.ProviderConfigProperty;
@@ -77,8 +79,10 @@ public class OtpAuthenticatorFactory implements AuthenticatorFactory {
 
   @Override
   public Authenticator create(KeycloakSession session) {
-    OtpParameterAuthenticator appAuthenticator = new OtpParameterAuthenticator();
-    OtpMailAuthenticator mailAuthenticator = createMailAuthenticator();
+    var appAuthenticator = new OtpParameterAuthenticator();
+    var authConfig = session.getContext().getRealm()
+        .getAuthenticatorConfigByAlias(OTP_CONFIG_ALIAS);
+    var mailAuthenticator = createMailAuthenticator(authConfig);
     return new MultiOtpAuthenticator(asList(appAuthenticator, mailAuthenticator));
   }
 
@@ -95,11 +99,11 @@ public class OtpAuthenticatorFactory implements AuthenticatorFactory {
   }
 
   @NotNull
-  private OtpMailAuthenticator createMailAuthenticator() {
+  private OtpMailAuthenticator createMailAuthenticator(AuthenticatorConfigModel authConfig) {
     var otpStore = MapBasedOtpStore.getInstance();
     var generator = new RandomDigitsCodeGenerator();
     var systemClock = Clock.systemDefaultZone();
-    var otpService = new MemoryOtpService(otpStore, generator, systemClock);
+    var otpService = new MemoryOtpService(otpStore, generator, systemClock, authConfig);
     var mailSender = new DefaultMailSender();
     return new OtpMailAuthenticator(otpService, mailSender);
   }

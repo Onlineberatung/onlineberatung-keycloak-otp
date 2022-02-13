@@ -177,8 +177,7 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
     }
 
     try {
-      var authConfig = realm.getAuthenticatorConfigByAlias(OTP_CONFIG_ALIAS);
-      var otp = otpService.createOtp(authConfig, username, mailSetup.getEmail());
+      var otp = otpService.createOtp(username, emailAddress);
       mailSender.sendOtpCode(otp, session, user, emailAddress);
     } catch (Exception e) {
       e.printStackTrace();

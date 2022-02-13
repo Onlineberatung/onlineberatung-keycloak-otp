@@ -1,6 +1,5 @@
 package de.diakonie.onlineberatung.authenticator;
 
-import static de.diakonie.onlineberatung.RealmOtpResourceProvider.OTP_CONFIG_ALIAS;
 import static de.diakonie.onlineberatung.RealmOtpResourceProvider.OTP_MAIL_AUTHENTICATION_ATTRIBUTE;
 import static de.diakonie.onlineberatung.authenticator.MultiOtpAuthenticator.extractDecodedOtpParam;
 import static de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpType.EMAIL;
@@ -37,9 +36,9 @@ public class OtpMailAuthenticator implements OtpAuthenticator {
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
-    UserModel user = context.getUser();
+    var user = context.getUser();
 
-    String otpOfRequest = extractDecodedOtpParam(context);
+    var otpOfRequest = extractDecodedOtpParam(context);
     if (isNull(otpOfRequest) || otpOfRequest.isBlank()) {
       sendOtpMail(context, user);
       return;
@@ -49,12 +48,11 @@ public class OtpMailAuthenticator implements OtpAuthenticator {
   }
 
   private void sendOtpMail(AuthenticationFlowContext context, UserModel user) {
-    var authConfig = context.getRealm().getAuthenticatorConfigByAlias(OTP_CONFIG_ALIAS);
     var username = user.getUsername();
     var emailAddress = user.getEmail();
 
     try {
-      var otp = otpService.createOtp(authConfig, username, emailAddress);
+      var otp = otpService.createOtp(username, emailAddress);
       mailSender.sendOtpCode(otp, context.getSession(), user, emailAddress);
 
       var challengeResponse = new Challenge().error("invalid_grant")
