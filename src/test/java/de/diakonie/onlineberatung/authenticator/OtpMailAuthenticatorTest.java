@@ -9,6 +9,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import de.diakonie.onlineberatung.RealmOtpResourceProvider;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.Challenge;
 import de.diakonie.onlineberatung.otp.Otp;
 import de.diakonie.onlineberatung.otp.OtpMailSender;
@@ -45,6 +46,28 @@ public class OtpMailAuthenticatorTest {
     when(authFlow.getRealm()).thenReturn(realm);
 
     authenticator = new OtpMailAuthenticator(otpService, mailSender);
+  }
+
+  @Test
+  public void isConfigured_should_be_true_if_mail_attribute_is_set() {
+    var user = mock(UserModel.class);
+    when(user.getFirstAttribute(
+        RealmOtpResourceProvider.OTP_MAIL_AUTHENTICATION_ATTRIBUTE)).thenReturn("true");
+    when(authFlow.getUser()).thenReturn(user);
+
+    var configured = authenticator.isConfigured(authFlow);
+
+    assertThat(configured).isTrue();
+  }
+
+  @Test
+  public void isConfigured_should_be_false_if_mail_attribute_is_not_set() {
+    var user = mock(UserModel.class);
+    when(authFlow.getUser()).thenReturn(user);
+
+    var configured = authenticator.isConfigured(authFlow);
+
+    assertThat(configured).isFalse();
   }
 
   @Test

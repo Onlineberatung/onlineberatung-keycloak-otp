@@ -1,8 +1,10 @@
 package de.diakonie.onlineberatung.authenticator;
 
 import static de.diakonie.onlineberatung.RealmOtpResourceProvider.OTP_CONFIG_ALIAS;
-import static de.diakonie.onlineberatung.authenticator.MailAppAuthenticator.extractDecodedOtpParam;
+import static de.diakonie.onlineberatung.RealmOtpResourceProvider.OTP_MAIL_AUTHENTICATION_ATTRIBUTE;
+import static de.diakonie.onlineberatung.authenticator.MultiOtpAuthenticator.extractDecodedOtpParam;
 import static de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpType.EMAIL;
+import static java.lang.Boolean.parseBoolean;
 import static java.util.Objects.isNull;
 import static org.keycloak.authentication.authenticators.client.ClientAuthUtil.errorResponse;
 
@@ -28,6 +30,12 @@ public class OtpMailAuthenticator implements OtpAuthenticator {
   }
 
   @Override
+  public boolean isConfigured(AuthenticationFlowContext context) {
+    var user = context.getUser();
+    return parseBoolean(user.getFirstAttribute(OTP_MAIL_AUTHENTICATION_ATTRIBUTE));
+  }
+
+  @Override
   public void authenticate(AuthenticationFlowContext context) {
     UserModel user = context.getUser();
 
@@ -39,7 +47,6 @@ public class OtpMailAuthenticator implements OtpAuthenticator {
 
     validateOtp(context, user.getUsername(), otpOfRequest);
   }
-
 
   private void sendOtpMail(AuthenticationFlowContext context, UserModel user) {
     var authConfig = context.getRealm().getAuthenticatorConfigByAlias(OTP_CONFIG_ALIAS);

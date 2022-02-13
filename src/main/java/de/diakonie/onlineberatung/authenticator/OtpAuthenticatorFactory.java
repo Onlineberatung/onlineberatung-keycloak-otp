@@ -1,11 +1,12 @@
 package de.diakonie.onlineberatung.authenticator;
 
+import static java.util.Arrays.asList;
+
 import de.diakonie.onlineberatung.mail.DefaultMailSender;
 import de.diakonie.onlineberatung.otp.MapBasedOtpStore;
 import de.diakonie.onlineberatung.otp.MemoryOtpService;
 import de.diakonie.onlineberatung.otp.RandomDigitsCodeGenerator;
 import java.time.Clock;
-import java.util.Arrays;
 import java.util.List;
 import org.jetbrains.annotations.NotNull;
 import org.keycloak.Config;
@@ -59,7 +60,7 @@ public class OtpAuthenticatorFactory implements AuthenticatorFactory {
 
   @Override
   public List<ProviderConfigProperty> getConfigProperties() {
-    return Arrays.asList(
+    return asList(
         new ProviderConfigProperty("length", "Code length",
             "The number of digits of the generated code.", ProviderConfigProperty.STRING_TYPE, 6),
         new ProviderConfigProperty("ttl", "Time-to-live",
@@ -78,7 +79,7 @@ public class OtpAuthenticatorFactory implements AuthenticatorFactory {
   public Authenticator create(KeycloakSession session) {
     OtpParameterAuthenticator appAuthenticator = new OtpParameterAuthenticator();
     OtpMailAuthenticator mailAuthenticator = createMailAuthenticator();
-    return new MailAppAuthenticator(appAuthenticator, mailAuthenticator);
+    return new MultiOtpAuthenticator(asList(appAuthenticator, mailAuthenticator));
   }
 
   @Override

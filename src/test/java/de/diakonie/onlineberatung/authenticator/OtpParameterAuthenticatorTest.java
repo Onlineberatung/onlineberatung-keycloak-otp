@@ -16,22 +16,55 @@ import org.junit.Before;
 import org.junit.Test;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
+import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.RealmModel;
+import org.keycloak.models.UserCredentialManager;
+import org.keycloak.models.UserModel;
+import org.keycloak.models.credential.OTPCredentialModel;
 import org.mockito.ArgumentCaptor;
 
 public class OtpParameterAuthenticatorTest {
 
   private OtpParameterAuthenticator authenticator;
   private AuthenticationFlowContext authFlow;
+  private UserModel user;
+  private RealmModel realm;
+  private UserCredentialManager credentialManager;
   private HttpRequest httpRequest;
   private MultivaluedHashMap<String, String> decodedFormParams;
 
   @Before
   public void setUp() {
     authFlow = mock(AuthenticationFlowContext.class);
+    when(authFlow.getHttpRequest()).thenReturn(mock(HttpRequest.class));
+    realm = mock(RealmModel.class);
+    when(authFlow.getRealm()).thenReturn(realm);
+    user = mock(UserModel.class);
+    when(authFlow.getUser()).thenReturn(user);
+    var session = mock(KeycloakSession.class);
+    when(authFlow.getSession()).thenReturn(session);
+    credentialManager = mock(UserCredentialManager.class);
+    when(session.userCredentialManager()).thenReturn(credentialManager);
     httpRequest = mock(HttpRequest.class);
     decodedFormParams = new MultivaluedHashMap<>();
     when(httpRequest.getDecodedFormParameters()).thenReturn(decodedFormParams);
     authenticator = new OtpParameterAuthenticator();
+  }
+
+  @Test
+  public void isConfigured_should_be_true_if_otp_auth_is_configured_for_user() {
+    when(credentialManager.isConfiguredFor(realm, user, OTPCredentialModel.TYPE)).thenReturn(true);
+
+    var configured = authenticator.isConfigured(authFlow);
+
+    assertThat(configured).isTrue();
+  }
+
+  @Test
+  public void isConfigured_should_be_false_if_otp_auth_is_not_configured_for_user() {
+    var configured = authenticator.isConfigured(authFlow);
+
+    assertThat(configured).isFalse();
   }
 
   @Test

@@ -1,10 +1,9 @@
 package de.diakonie.onlineberatung.authenticator;
 
-import static de.diakonie.onlineberatung.RealmOtpResourceProvider.OTP_MAIL_AUTHENTICATION_ATTRIBUTE;
-import static java.lang.Boolean.parseBoolean;
 import static java.util.Objects.isNull;
 
 import de.diakonie.onlineberatung.otp.OtpAuthenticator;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import org.keycloak.authentication.AuthenticationFlowContext;
@@ -14,23 +13,19 @@ import org.keycloak.models.AuthenticationExecutionModel.Requirement;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
-import org.keycloak.models.credential.OTPCredentialModel;
 import org.keycloak.provider.ProviderConfigProperty;
 
-public class MailAppAuthenticator extends AbstractDirectGrantAuthenticator {
+public class MultiOtpAuthenticator extends AbstractDirectGrantAuthenticator {
 
-  public static final String ID = "otp-mail-app-authenticator";
+  public static final String ID = "multi-otp-authenticator";
 
   final AuthenticationExecutionModel.Requirement[] REQUIREMENT_CHOICES = {
       AuthenticationExecutionModel.Requirement.REQUIRED};
 
-  private final OtpAuthenticator appAuthenticator;
-  private final OtpAuthenticator mailAuthenticator;
+  private final Collection<OtpAuthenticator> authenticators;
 
-  public MailAppAuthenticator(OtpAuthenticator appAuthenticator,
-      OtpAuthenticator mailAuthenticator) {
-    this.appAuthenticator = appAuthenticator;
-    this.mailAuthenticator = mailAuthenticator;
+  public MultiOtpAuthenticator(Collection<OtpAuthenticator> authenticators) {
+    this.authenticators = authenticators;
   }
 
   @Override
@@ -40,21 +35,10 @@ public class MailAppAuthenticator extends AbstractDirectGrantAuthenticator {
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
-    RealmModel realm = context.getRealm();
-    UserModel user = context.getUser();
-
-    if (isApp2FaConfigured(context, realm, user)) {
-      appAuthenticator.authenticate(context);
-      return;
-    }
-
-    if (isMail2FaConfigured(user)) {
-      mailAuthenticator.authenticate(context);
-      return;
-    }
-
-    // no 2FA activated, but user is authenticated
-    context.success();
+    authenticators.stream()
+        .filter(authenticator -> authenticator.isConfigured(context))
+        .findFirst()
+        .ifPresentOrElse(a -> a.authenticate(context), context::success);
   }
 
   @Override
@@ -101,7 +85,7 @@ public class MailAppAuthenticator extends AbstractDirectGrantAuthenticator {
 
   @Override
   public String getHelpText() {
-    return "Validates if the otp parameter is set when OTP is enabled for the user, or if code sent via email is valid";
+    return "Authenticates via configured OTP authenticators.";
   }
 
   @Override
@@ -116,13 +100,4 @@ public class MailAppAuthenticator extends AbstractDirectGrantAuthenticator {
     return otpParam;
   }
 
-  private boolean isApp2FaConfigured(AuthenticationFlowContext context, RealmModel realm,
-      UserModel user) {
-    return context.getSession().userCredentialManager()
-        .isConfiguredFor(realm, user, OTPCredentialModel.TYPE);
-  }
-
-  private boolean isMail2FaConfigured(UserModel user) {
-    return parseBoolean(user.getFirstAttribute(OTP_MAIL_AUTHENTICATION_ATTRIBUTE));
-  }
 }

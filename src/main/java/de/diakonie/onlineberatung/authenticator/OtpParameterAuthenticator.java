@@ -1,6 +1,6 @@
 package de.diakonie.onlineberatung.authenticator;
 
-import static de.diakonie.onlineberatung.authenticator.MailAppAuthenticator.extractDecodedOtpParam;
+import static de.diakonie.onlineberatung.authenticator.MultiOtpAuthenticator.extractDecodedOtpParam;
 import static de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpType.APP;
 
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.Challenge;
@@ -10,8 +10,18 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
+import org.keycloak.models.credential.OTPCredentialModel;
 
 public class OtpParameterAuthenticator implements OtpAuthenticator {
+
+  @Override
+  public boolean isConfigured(AuthenticationFlowContext context) {
+    var realm = context.getRealm();
+    var user = context.getUser();
+    return context.getSession().userCredentialManager()
+        .isConfiguredFor(realm, user, OTPCredentialModel.TYPE);
+
+  }
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
