@@ -91,6 +91,7 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
     }
 
     String otpSecret = HmacOTP.generateSecret(KEY_LENGTH);
+    otpInfoDTO.setOtpSetup(false);
     otpInfoDTO.setOtpSecret(otpSecret);
     otpInfoDTO.setOtpSecretQrCode(TotpUtils.qrCode(otpSecret, realm, user));
     return Response.ok(otpInfoDTO).build();
