@@ -14,11 +14,14 @@ import de.diakonie.onlineberatung.otp.OtpService;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import org.jboss.logging.Logger;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.models.UserModel;
 
 public class OtpMailAuthenticator implements OtpAuthenticator {
+
+  private static final Logger logger = Logger.getLogger(OtpMailAuthenticator.class);
 
   private final OtpService otpService;
   private final OtpMailSender mailSender;
@@ -61,7 +64,7 @@ public class OtpMailAuthenticator implements OtpAuthenticator {
           Response.status(Status.BAD_REQUEST).entity(challengeResponse)
               .type(MediaType.APPLICATION_JSON_TYPE).build());
     } catch (Exception e) {
-      e.printStackTrace();
+      logger.error("failed to send otp mail", e);
       otpService.invalidate(username);
       context.failure(AuthenticationFlowError.INTERNAL_ERROR,
           errorResponse(Status.INTERNAL_SERVER_ERROR.getStatusCode(),
