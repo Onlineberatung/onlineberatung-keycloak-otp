@@ -22,6 +22,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
+import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.mockito.ArgumentCaptor;
@@ -29,6 +30,8 @@ import org.mockito.ArgumentCaptor;
 @RunWith(Parameterized.class)
 public class OtpMailAuthenticatorParameterizedTest {
 
+
+  private KeycloakSession session;
 
   @Parameters(name = "Test {index}: authenticate ValidationResult{0} = http {1} flowError {2}")
   public static Collection<Object[]> data() {
@@ -70,7 +73,8 @@ public class OtpMailAuthenticatorParameterizedTest {
     var user = mock(UserModel.class);
     when(user.getUsername()).thenReturn("katharina");
     when(authFlow.getUser()).thenReturn(user);
-    authenticator = new OtpMailAuthenticator(otpService, mock(OtpMailSender.class));
+    session = mock(KeycloakSession.class);
+    authenticator = new OtpMailAuthenticator(otpService, mock(OtpMailSender.class), session);
   }
 
   @Test

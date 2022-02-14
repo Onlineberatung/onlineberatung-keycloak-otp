@@ -1,40 +1,47 @@
 package de.diakonie.onlineberatung.authenticator;
 
 import static de.diakonie.onlineberatung.RealmOtpResourceProvider.OTP_MAIL_AUTHENTICATION_ATTRIBUTE;
-import static de.diakonie.onlineberatung.authenticator.MultiOtpAuthenticator.extractDecodedOtpParam;
+import static de.diakonie.onlineberatung.authenticator.OtpParameterAuthenticator.extractDecodedOtpParam;
 import static de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpType.EMAIL;
 import static java.lang.Boolean.parseBoolean;
 import static java.util.Objects.isNull;
-import static org.keycloak.authentication.authenticators.client.ClientAuthUtil.errorResponse;
 
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.Challenge;
-import de.diakonie.onlineberatung.otp.OtpAuthenticator;
 import de.diakonie.onlineberatung.otp.OtpMailSender;
 import de.diakonie.onlineberatung.otp.OtpService;
+import java.util.List;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import org.jboss.logging.Logger;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
+import org.keycloak.authentication.authenticators.directgrant.AbstractDirectGrantAuthenticator;
+import org.keycloak.models.AuthenticationExecutionModel.Requirement;
+import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.provider.ProviderConfigProperty;
 
-public class OtpMailAuthenticator implements OtpAuthenticator {
+public class OtpMailAuthenticator extends AbstractDirectGrantAuthenticator {
 
   private static final Logger logger = Logger.getLogger(OtpMailAuthenticator.class);
 
   private final OtpService otpService;
   private final OtpMailSender mailSender;
+  private final KeycloakSession session;
 
-  public OtpMailAuthenticator(OtpService otpService, OtpMailSender mailSender) {
+  public OtpMailAuthenticator(OtpService otpService, OtpMailSender mailSender,
+      KeycloakSession session) {
     this.otpService = otpService;
     this.mailSender = mailSender;
+    this.session = session;
   }
 
   @Override
-  public boolean isConfigured(AuthenticationFlowContext context) {
-    var user = context.getUser();
-    return parseBoolean(user.getFirstAttribute(OTP_MAIL_AUTHENTICATION_ATTRIBUTE));
+  public boolean configuredFor(KeycloakSession keycloakSession, RealmModel realmModel,
+      UserModel userModel) {
+    return parseBoolean(userModel.getFirstAttribute(OTP_MAIL_AUTHENTICATION_ATTRIBUTE));
   }
 
   @Override
@@ -48,6 +55,16 @@ public class OtpMailAuthenticator implements OtpAuthenticator {
     }
 
     validateOtp(context, user.getUsername(), otpOfRequest);
+  }
+
+  @Override
+  public boolean requiresUser() {
+    return true;
+  }
+
+  @Override
+  public void setRequiredActions(KeycloakSession session, RealmModel realm, UserModel user) {
+
   }
 
   private void sendOtpMail(AuthenticationFlowContext context, UserModel user) {
@@ -102,5 +119,45 @@ public class OtpMailAuthenticator implements OtpAuthenticator {
             errorResponse(Status.INTERNAL_SERVER_ERROR.getStatusCode(),
                 "internal_error", "failed to validate code"));
     }
+  }
+
+  @Override
+  public String getDisplayType() {
+    return null;
+  }
+
+  @Override
+  public String getReferenceCategory() {
+    return "otp";
+  }
+
+  @Override
+  public boolean isConfigurable() {
+    return false;
+  }
+
+  @Override
+  public Requirement[] getRequirementChoices() {
+    return new Requirement[0];
+  }
+
+  @Override
+  public boolean isUserSetupAllowed() {
+    return false;
+  }
+
+  @Override
+  public String getHelpText() {
+    return null;
+  }
+
+  @Override
+  public List<ProviderConfigProperty> getConfigProperties() {
+    return null;
+  }
+
+  @Override
+  public String getId() {
+    return null;
   }
 }

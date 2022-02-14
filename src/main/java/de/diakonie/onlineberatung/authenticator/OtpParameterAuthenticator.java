@@ -1,31 +1,46 @@
 package de.diakonie.onlineberatung.authenticator;
 
-import static de.diakonie.onlineberatung.authenticator.MultiOtpAuthenticator.extractDecodedOtpParam;
 import static de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpType.APP;
+import static java.util.Objects.isNull;
 
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.Challenge;
-import de.diakonie.onlineberatung.otp.OtpAuthenticator;
+import java.util.Collections;
+import java.util.List;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
+import org.keycloak.authentication.authenticators.directgrant.AbstractDirectGrantAuthenticator;
+import org.keycloak.models.AuthenticationExecutionModel;
+import org.keycloak.models.AuthenticationExecutionModel.Requirement;
+import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.RealmModel;
+import org.keycloak.models.UserModel;
 import org.keycloak.models.credential.OTPCredentialModel;
+import org.keycloak.provider.ProviderConfigProperty;
 
-public class OtpParameterAuthenticator implements OtpAuthenticator {
+public class OtpParameterAuthenticator extends AbstractDirectGrantAuthenticator {
+
+  public static final String ID = "otp-parameter-authenticator";
+  AuthenticationExecutionModel.Requirement[] REQUIREMENT_CHOICES = {
+      AuthenticationExecutionModel.Requirement.REQUIRED};
+
+  private final KeycloakSession session;
+
+  public OtpParameterAuthenticator(KeycloakSession session) {
+    this.session = session;
+  }
 
   @Override
-  public boolean isConfigured(AuthenticationFlowContext context) {
-    var realm = context.getRealm();
-    var user = context.getUser();
-    return context.getSession().userCredentialManager()
-        .isConfiguredFor(realm, user, OTPCredentialModel.TYPE);
-
+  public String getId() {
+    return ID;
   }
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
     String otpOfRequest = extractDecodedOtpParam(context);
+
     if (otpOfRequest == null) {
       Challenge challengeResponse = new Challenge().error("invalid_grant")
           .errorDescription("Missing totp").otpType(APP);
@@ -35,5 +50,65 @@ public class OtpParameterAuthenticator implements OtpAuthenticator {
       return;
     }
     context.success();
+  }
+
+  @Override
+  public boolean requiresUser() {
+    return true;
+  }
+
+  @Override
+  public boolean configuredFor(KeycloakSession keycloakSession, RealmModel realmModel,
+      UserModel userModel) {
+    return keycloakSession.userCredentialManager()
+        .isConfiguredFor(realmModel, userModel, OTPCredentialModel.TYPE);
+  }
+
+  @Override
+  public void setRequiredActions(KeycloakSession keycloakSession, RealmModel realmModel,
+      UserModel userModel) {
+    // Nothing to do here because configuredFor always returns true
+  }
+
+  @Override
+  public String getDisplayType() {
+    return "OTP parameter validator";
+  }
+
+  @Override
+  public String getReferenceCategory() {
+    return "otp";
+  }
+
+  @Override
+  public boolean isConfigurable() {
+    return false;
+  }
+
+  @Override
+  public Requirement[] getRequirementChoices() {
+    return REQUIREMENT_CHOICES;
+  }
+
+  @Override
+  public boolean isUserSetupAllowed() {
+    return false;
+  }
+
+  @Override
+  public String getHelpText() {
+    return "Validates if the otp parameter is set when OTP is enabled for the user";
+  }
+
+  @Override
+  public List<ProviderConfigProperty> getConfigProperties() {
+    return Collections.emptyList();
+  }
+
+  static String extractDecodedOtpParam(AuthenticationFlowContext context) {
+    var inputData = context.getHttpRequest().getDecodedFormParameters();
+    var otpParam = inputData.getFirst("otp");
+    otpParam = (isNull(otpParam)) ? inputData.getFirst("totp") : otpParam;
+    return otpParam;
   }
 }

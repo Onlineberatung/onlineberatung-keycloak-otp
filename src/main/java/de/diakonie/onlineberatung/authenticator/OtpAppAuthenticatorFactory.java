@@ -1,39 +1,31 @@
 package de.diakonie.onlineberatung.authenticator;
 
-import static de.diakonie.onlineberatung.RealmOtpResourceProvider.OTP_CONFIG_ALIAS;
 import static java.util.Arrays.asList;
 
-import de.diakonie.onlineberatung.mail.DefaultMailSender;
-import de.diakonie.onlineberatung.otp.MapBasedOtpStore;
-import de.diakonie.onlineberatung.otp.MemoryOtpService;
-import de.diakonie.onlineberatung.otp.RandomDigitsCodeGenerator;
-import java.time.Clock;
 import java.util.List;
-import org.jetbrains.annotations.NotNull;
 import org.keycloak.Config;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.authentication.AuthenticatorFactory;
 import org.keycloak.models.AuthenticationExecutionModel;
-import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.provider.ProviderConfigProperty;
 
-public class OtpAuthenticatorFactory implements AuthenticatorFactory {
+public class OtpAppAuthenticatorFactory implements AuthenticatorFactory {
 
   @Override
   public String getId() {
-    return "email-authenticator";
+    return "app-authenticator";
   }
 
   @Override
   public String getDisplayType() {
-    return "Email Authentication";
+    return "App Authentication";
   }
 
   @Override
   public String getHelpText() {
-    return "Validates an OTP sent via email to the users email address.";
+    return "Validates an OTP via App.";
   }
 
   @Override
@@ -79,11 +71,7 @@ public class OtpAuthenticatorFactory implements AuthenticatorFactory {
 
   @Override
   public Authenticator create(KeycloakSession session) {
-    var appAuthenticator = new OtpParameterAuthenticator();
-    var authConfig = session.getContext().getRealm()
-        .getAuthenticatorConfigByAlias(OTP_CONFIG_ALIAS);
-    var mailAuthenticator = createMailAuthenticator(authConfig);
-    return new MultiOtpAuthenticator(asList(appAuthenticator, mailAuthenticator));
+    return new OtpParameterAuthenticator(session);
   }
 
   @Override
@@ -98,14 +86,5 @@ public class OtpAuthenticatorFactory implements AuthenticatorFactory {
   public void close() {
   }
 
-  @NotNull
-  private OtpMailAuthenticator createMailAuthenticator(AuthenticatorConfigModel authConfig) {
-    var otpStore = MapBasedOtpStore.getInstance();
-    var generator = new RandomDigitsCodeGenerator();
-    var systemClock = Clock.systemDefaultZone();
-    var otpService = new MemoryOtpService(otpStore, generator, systemClock, authConfig);
-    var mailSender = new DefaultMailSender();
-    return new OtpMailAuthenticator(otpService, mailSender);
-  }
 
 }

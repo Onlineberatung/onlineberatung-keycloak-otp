@@ -1,1 +1,2 @@
-de.diakonie.onlineberatung.authenticator.OtpAuthenticatorFactory
+de.diakonie.onlineberatung.authenticator.OtpMailAuthenticatorFactory
+de.diakonie.onlineberatung.authenticator.OtpAppAuthenticatorFactory

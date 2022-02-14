@@ -22,6 +22,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
+import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.mockito.ArgumentCaptor;
@@ -32,6 +33,8 @@ public class OtpMailAuthenticatorTest {
   private OtpMailSender mailSender;
   private OtpService otpService;
   private OtpMailAuthenticator authenticator;
+  private KeycloakSession session;
+  private RealmModel realm;
 
   @Before
   public void setUp() {
@@ -42,10 +45,11 @@ public class OtpMailAuthenticatorTest {
     when(httpRequest.getDecodedFormParameters()).thenReturn(decodedFormParams);
     mailSender = mock(OtpMailSender.class);
     otpService = mock(OtpService.class);
-    var realm = mock(RealmModel.class);
+    realm = mock(RealmModel.class);
     when(authFlow.getRealm()).thenReturn(realm);
+    session = mock(KeycloakSession.class);
 
-    authenticator = new OtpMailAuthenticator(otpService, mailSender);
+    authenticator = new OtpMailAuthenticator(otpService, mailSender, session);
   }
 
   @Test
@@ -55,7 +59,7 @@ public class OtpMailAuthenticatorTest {
         RealmOtpResourceProvider.OTP_MAIL_AUTHENTICATION_ATTRIBUTE)).thenReturn("true");
     when(authFlow.getUser()).thenReturn(user);
 
-    var configured = authenticator.isConfigured(authFlow);
+    var configured = authenticator.configuredFor(session, realm, user);
 
     assertThat(configured).isTrue();
   }
@@ -65,7 +69,7 @@ public class OtpMailAuthenticatorTest {
     var user = mock(UserModel.class);
     when(authFlow.getUser()).thenReturn(user);
 
-    var configured = authenticator.isConfigured(authFlow);
+    var configured = authenticator.configuredFor(session, realm, user);
 
     assertThat(configured).isFalse();
   }
