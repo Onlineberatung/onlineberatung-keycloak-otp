@@ -84,7 +84,7 @@ public class OtpMailAuthenticatorFactory implements AuthenticatorFactory {
     var systemClock = Clock.systemDefaultZone();
     var otpService = new MemoryOtpService(otpStore, generator, systemClock, authConfig);
     var mailSender = new DefaultMailSender();
-    return new OtpMailAuthenticator(otpService, mailSender, session);
+    return new OtpMailAuthenticator(otpService, mailSender);
   }
 
   @Override

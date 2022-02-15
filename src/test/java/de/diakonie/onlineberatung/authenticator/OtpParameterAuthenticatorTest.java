@@ -49,7 +49,7 @@ public class OtpParameterAuthenticatorTest {
     httpRequest = mock(HttpRequest.class);
     decodedFormParams = new MultivaluedHashMap<>();
     when(httpRequest.getDecodedFormParameters()).thenReturn(decodedFormParams);
-    authenticator = new OtpParameterAuthenticator(session);
+    authenticator = new OtpParameterAuthenticator();
   }
 
   @Test

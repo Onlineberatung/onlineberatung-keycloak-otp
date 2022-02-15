@@ -29,13 +29,10 @@ public class OtpMailAuthenticator extends AbstractDirectGrantAuthenticator {
 
   private final OtpService otpService;
   private final OtpMailSender mailSender;
-  private final KeycloakSession session;
 
-  public OtpMailAuthenticator(OtpService otpService, OtpMailSender mailSender,
-      KeycloakSession session) {
+  public OtpMailAuthenticator(OtpService otpService, OtpMailSender mailSender) {
     this.otpService = otpService;
     this.mailSender = mailSender;
-    this.session = session;
   }
 
   @Override

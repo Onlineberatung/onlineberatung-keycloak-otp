@@ -71,7 +71,7 @@ public class OtpAppAuthenticatorFactory implements AuthenticatorFactory {
 
   @Override
   public Authenticator create(KeycloakSession session) {
-    return new OtpParameterAuthenticator(session);
+    return new OtpParameterAuthenticator();
   }
 
   @Override

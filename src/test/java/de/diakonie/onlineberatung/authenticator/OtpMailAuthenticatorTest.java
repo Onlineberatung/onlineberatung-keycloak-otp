@@ -49,7 +49,7 @@ public class OtpMailAuthenticatorTest {
     when(authFlow.getRealm()).thenReturn(realm);
     session = mock(KeycloakSession.class);
 
-    authenticator = new OtpMailAuthenticator(otpService, mailSender, session);
+    authenticator = new OtpMailAuthenticator(otpService, mailSender);
   }
 
   @Test

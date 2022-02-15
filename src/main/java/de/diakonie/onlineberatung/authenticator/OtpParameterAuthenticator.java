@@ -23,14 +23,9 @@ import org.keycloak.provider.ProviderConfigProperty;
 public class OtpParameterAuthenticator extends AbstractDirectGrantAuthenticator {
 
   public static final String ID = "otp-parameter-authenticator";
-  AuthenticationExecutionModel.Requirement[] REQUIREMENT_CHOICES = {
+
+  final AuthenticationExecutionModel.Requirement[] REQUIREMENT_CHOICES = {
       AuthenticationExecutionModel.Requirement.REQUIRED};
-
-  private final KeycloakSession session;
-
-  public OtpParameterAuthenticator(KeycloakSession session) {
-    this.session = session;
-  }
 
   @Override
   public String getId() {
