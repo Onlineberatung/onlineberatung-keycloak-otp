@@ -2,8 +2,10 @@ package de.diakonie.onlineberatung;
 
 import static java.lang.Boolean.parseBoolean;
 import static java.util.Objects.isNull;
+import static java.util.Objects.nonNull;
 
 import de.diakonie.onlineberatung.authenticator.SessionAuthenticator;
+import de.diakonie.onlineberatung.credential.MailOtpCredentialModel;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.Error;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpInfoDTO;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpSetupDTO;
@@ -179,15 +181,20 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
           .errorDescription(MISSING_EMAIL_ADDRESS_ERROR_DESCRIPTION)).build();
     }
 
+    var otp = otpService.createOtp(emailAddress, false);
+    MailOtpCredentialModel credentialModel = null;
     try {
-      var otp = otpService.createOtp(username, emailAddress);
+      credentialModel = otpService.createCredential(otp, realm, user);
       mailSender.sendOtpCode(otp, session, user, emailAddress);
     } catch (Exception e) {
+      if (nonNull(credentialModel)) {
+        otpService.invalidate(credentialModel, realm, user);
+      }
       logger.error("failed to send verification mail", e);
-      otpService.invalidate(username);
       return Response.status(Status.INTERNAL_SERVER_ERROR).entity(new Error().error(FAILED_TO_SENT))
           .build();
     }
+
     return Response.status(Status.OK).entity(new Success().info("OTP mail sent"))
         .build();
   }
@@ -208,15 +215,15 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
           .errorDescription(MISSING_USERNAME_ERROR_DESCRIPTION)).build();
     }
 
-    return verifyInitialMailOtp(mailSetup.getInitialCode(), username, user);
+    return verifyInitialMailOtp(mailSetup.getInitialCode(), realm, user);
   }
 
   private void deleteAllOtpCredentials(RealmModel realm, UserModel user) {
-    user.setSingleAttribute(OTP_MAIL_AUTHENTICATION_ATTRIBUTE, "false");
     this.session.userCredentialManager().
-        getStoredCredentialsByTypeStream(realm, user, OTPCredentialModel.TYPE).
-        forEach(credentialModel -> CredentialHelper
+        getStoredCredentialsByTypeStream(realm, user, OTPCredentialModel.TYPE)
+        .forEach(credentialModel -> CredentialHelper
             .deleteOTPCredential(this.session, realm, user, credentialModel.getId()));
+    this.otpService.deleteCredential(session, realm, user);
   }
 
   private void verifyAuthentication() {
@@ -233,9 +240,9 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
     // Do nothing because it is not needed
   }
 
-  private Response verifyInitialMailOtp(String initialCode, String username, UserModel user) {
-    var otp = otpService.get(username);
-    var validationResult = otpService.validate(initialCode, username);
+  private Response verifyInitialMailOtp(String initialCode, RealmModel realm, UserModel user) {
+    var credentialModel = otpService.getCredential(session, realm, user);
+    var validationResult = otpService.validate(initialCode, credentialModel, realm, user);
     switch (validationResult) {
       case NOT_PRESENT:
         return Response.status(Status.UNAUTHORIZED).entity(
@@ -251,7 +258,16 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
             new Error().error("invalid_grant")
                 .errorDescription("Maximal number of failed attempts reached")).build();
       case VALID:
-        user.setSingleAttribute(OTP_MAIL_AUTHENTICATION_ATTRIBUTE, "true");
+        try {
+          otpService.activateCredential(credentialModel, realm, user);
+        } catch (Exception e) {
+          logger.error("failed to activate credentials", e);
+          return Response.status(Status.INTERNAL_SERVER_ERROR)
+              .entity(new Error().error("invalid_grant")
+                  .errorDescription("failed to activate mail otp"))
+              .build();
+        }
+        var otp = credentialModel.getOtp();
         return Response.status(Status.CREATED)
             .entity(new SuccessWithEmail().email(otp.getEmail()).info("OTP setup created"))
             .build();

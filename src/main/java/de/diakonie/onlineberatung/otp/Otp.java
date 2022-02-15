@@ -1,7 +1,6 @@
 package de.diakonie.onlineberatung.otp;
 
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class Otp {
 
@@ -9,14 +8,17 @@ public class Otp {
   private final long ttlInSeconds;
   private final long expiry;
   private final String email;
-  private final AtomicInteger failedVerifications;
+  private final int failedVerifications;
+  private final boolean active;
 
-  public Otp(String code, long ttlInSeconds, long expiry, String email) {
+  public Otp(String code, long ttlInSeconds, long expiry, String email, int failedVerifications,
+      boolean active) {
     this.code = code;
     this.ttlInSeconds = ttlInSeconds;
     this.expiry = expiry;
     this.email = email;
-    this.failedVerifications = new AtomicInteger();
+    this.active = active;
+    this.failedVerifications = failedVerifications;
   }
 
   public String getCode() {
@@ -31,12 +33,16 @@ public class Otp {
     return expiry;
   }
 
-  public int incAndGetFailedVerifications() {
-    return failedVerifications.incrementAndGet();
-  }
-
   public String getEmail() {
     return email;
+  }
+
+  public int getFailedVerifications() {
+    return failedVerifications;
+  }
+
+  public boolean isActive() {
+    return active;
   }
 
   @Override
@@ -48,14 +54,14 @@ public class Otp {
       return false;
     }
     Otp otp = (Otp) o;
-    return ttlInSeconds == otp.ttlInSeconds && expiry == otp.expiry && Objects.equals(code,
-        otp.code) && Objects.equals(email, otp.email)
-        && failedVerifications.get() == otp.failedVerifications.get();
+    return ttlInSeconds == otp.ttlInSeconds && expiry == otp.expiry
+        && failedVerifications == otp.failedVerifications && active == otp.active
+        && Objects.equals(code, otp.code) && Objects.equals(email, otp.email);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(code, ttlInSeconds, expiry, email, failedVerifications.get());
+    return Objects.hash(code, ttlInSeconds, expiry, email, failedVerifications, active);
   }
 
   @Override
@@ -65,8 +71,8 @@ public class Otp {
         ", ttlInSeconds=" + ttlInSeconds +
         ", expiry=" + expiry +
         ", email='" + email + '\'' +
-        ", failedVerifications=" + failedVerifications.get() +
+        ", failedVerifications=" + failedVerifications +
+        ", active=" + active +
         '}';
   }
-
 }

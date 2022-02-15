@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import de.diakonie.onlineberatung.authenticator.SessionAuthenticator;
+import de.diakonie.onlineberatung.credential.MailOtpCredentialModel;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpSetupDTO;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.SuccessWithEmail;
 import de.diakonie.onlineberatung.otp.Otp;
@@ -16,6 +17,7 @@ import de.diakonie.onlineberatung.otp.OtpMailSender;
 import de.diakonie.onlineberatung.otp.OtpService;
 import de.diakonie.onlineberatung.otp.ValidationResult;
 import java.io.IOException;
+import java.time.Clock;
 import org.junit.Before;
 import org.junit.Test;
 import org.keycloak.models.KeycloakContext;
@@ -56,8 +58,8 @@ public class RealmOtpResourceProviderTest {
   public void sendVerificationMail_should_create_and_send_otp() throws Exception {
     var mailSetup = new OtpSetupDTO();
     mailSetup.setEmail("hk@test.de");
-    var otp = new Otp("123", 450L, 1234567L, "hk@test.de");
-    when(otpService.createOtp("heinrich", "hk@test.de")).thenReturn(otp);
+    var otp = new Otp("123", 450L, 1234567L, "hk@test.de", 0,false);
+    when(otpService.createOtp("hk@test.de", false)).thenReturn(otp);
 
     var response = resourceProvider.sendVerificationMail("heinrich", mailSetup);
 
@@ -87,14 +89,16 @@ public class RealmOtpResourceProviderTest {
   public void sendVerificationMail_should_invalidate_otp_if_sending_fails() throws Exception {
     var mailSetup = new OtpSetupDTO();
     mailSetup.setEmail("hk@test.de");
-    var otp = new Otp("123", 450L, 1234567L, "hk@test.de");
-    when(otpService.createOtp("heinrich", "hk@test.de")).thenReturn(otp);
+    var otp = new Otp("123", 450L, 1234567L, "hk@test.de", 0,false);
+    when(otpService.createOtp("hk@test.de", false)).thenReturn(otp);
     doThrow(IOException.class).when(mailSender).sendOtpCode(any(), any(), any(), any());
+    var credentialModel = MailOtpCredentialModel.createOtpModel(otp, Clock.systemDefaultZone());
+    when(otpService.createCredential(otp, realmModel, user)).thenReturn(credentialModel);
 
     var response = resourceProvider.sendVerificationMail("heinrich", mailSetup);
 
     assertThat(response.getStatus()).isEqualTo(500);
-    verify(otpService).invalidate("heinrich");
+    verify(otpService).invalidate(credentialModel, realmModel, user);
   }
 
   @Test
@@ -112,8 +116,12 @@ public class RealmOtpResourceProviderTest {
     when(userProvider.getUserByUsername(realmModel, "heinrich")).thenReturn(user);
     var mailSetup = new OtpSetupDTO();
     mailSetup.setInitialCode("1223");
-    when(otpService.get("heinrich")).thenReturn(new Otp("1223", 1L, 2L, "hk@test.de"));
-    when(otpService.validate("1223", "heinrich")).thenReturn(ValidationResult.VALID);
+    var otp = new Otp("1223", 1L, 2L, "hk@test.de", 0,false);
+    var credentialModel = MailOtpCredentialModel.createOtpModel(otp, Clock.systemDefaultZone());
+    when(otpService.validate("1223", credentialModel, realmModel, user)).thenReturn(
+        ValidationResult.VALID);
+    when(otpService.getCredential(session, realmModel, user)).thenReturn(credentialModel);
+    when(otpService.createCredential(otp, realmModel, user)).thenReturn(credentialModel);
 
     var response = resourceProvider.setupOtpMail("heinrich", mailSetup);
 
@@ -121,8 +129,8 @@ public class RealmOtpResourceProviderTest {
     var otpWithEmailSuccess = response.readEntity(SuccessWithEmail.class);
     assertThat(otpWithEmailSuccess.getEmail()).isEqualTo("hk@test.de");
     var inOrder = inOrder(otpService, otpService);
-    inOrder.verify(otpService).get("heinrich");
-    inOrder.verify(otpService).validate("1223", "heinrich");
+    inOrder.verify(otpService).getCredential(session, realmModel, user);
+    inOrder.verify(otpService).validate("1223", credentialModel, realmModel, user);
   }
 
 }

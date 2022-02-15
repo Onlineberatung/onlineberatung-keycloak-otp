@@ -6,9 +6,12 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import de.diakonie.onlineberatung.credential.MailOtpCredentialModel;
+import de.diakonie.onlineberatung.otp.Otp;
 import de.diakonie.onlineberatung.otp.OtpMailSender;
 import de.diakonie.onlineberatung.otp.OtpService;
 import de.diakonie.onlineberatung.otp.ValidationResult;
+import java.time.Clock;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -22,12 +25,18 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
+import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.mockito.ArgumentCaptor;
 
 @RunWith(Parameterized.class)
 public class OtpMailAuthenticatorParameterizedTest {
+
+
+  private KeycloakSession session;
+  private RealmModel realm;
+  private UserModel user;
 
   @Parameters(name = "Test {index}: authenticate ValidationResult{0} = http {1} flowError {2}")
   public static Collection<Object[]> data() {
@@ -64,17 +73,25 @@ public class OtpMailAuthenticatorParameterizedTest {
     decodedFormParams.put("otp", Collections.singletonList("765432"));
     when(httpRequest.getDecodedFormParameters()).thenReturn(decodedFormParams);
     otpService = mock(OtpService.class);
-    var realm = mock(RealmModel.class);
+    realm = mock(RealmModel.class);
     when(authFlow.getRealm()).thenReturn(realm);
-    var user = mock(UserModel.class);
+    user = mock(UserModel.class);
     when(user.getUsername()).thenReturn("katharina");
     when(authFlow.getUser()).thenReturn(user);
+    session = mock(KeycloakSession.class);
+    when(authFlow.getSession()).thenReturn(session);
     authenticator = new OtpMailAuthenticator(otpService, mock(OtpMailSender.class));
   }
 
   @Test
   public void authenticate_otp_validation() {
-    when(otpService.validate("765432", "katharina")).thenReturn(input);
+    MailOtpCredentialModel credentialModel = MailOtpCredentialModel.createOtpModel(
+        new Otp("765432", 11L, 112L, null, 0, true),
+        Clock.systemDefaultZone());
+    when(otpService.getCredential(session, realm, user)).thenReturn(credentialModel);
+    when(otpService.getCredential(session, realm, user)).thenReturn(
+        credentialModel);
+    when(otpService.validate("765432", credentialModel, realm, user)).thenReturn(input);
 
     authenticator.authenticate(authFlow);
 

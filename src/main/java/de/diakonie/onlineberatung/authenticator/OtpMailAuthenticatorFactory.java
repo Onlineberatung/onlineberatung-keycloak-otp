@@ -3,8 +3,8 @@ package de.diakonie.onlineberatung.authenticator;
 import static de.diakonie.onlineberatung.RealmOtpResourceProvider.OTP_CONFIG_ALIAS;
 import static java.util.Arrays.asList;
 
+import de.diakonie.onlineberatung.credential.MailOtpCredentialProviderFactory;
 import de.diakonie.onlineberatung.mail.DefaultMailSender;
-import de.diakonie.onlineberatung.otp.MapBasedOtpStore;
 import de.diakonie.onlineberatung.otp.MemoryOtpService;
 import de.diakonie.onlineberatung.otp.RandomDigitsCodeGenerator;
 import java.time.Clock;
@@ -79,10 +79,11 @@ public class OtpMailAuthenticatorFactory implements AuthenticatorFactory {
   public Authenticator create(KeycloakSession session) {
     var authConfig = session.getContext().getRealm()
         .getAuthenticatorConfigByAlias(OTP_CONFIG_ALIAS);
-    var otpStore = MapBasedOtpStore.getInstance();
     var generator = new RandomDigitsCodeGenerator();
     var systemClock = Clock.systemDefaultZone();
-    var otpService = new MemoryOtpService(otpStore, generator, systemClock, authConfig);
+    var mailOtpCredentialProvider = new MailOtpCredentialProviderFactory().create(session);
+    var otpService = new MemoryOtpService(mailOtpCredentialProvider, generator, systemClock,
+        authConfig);
     var mailSender = new DefaultMailSender();
     return new OtpMailAuthenticator(otpService, mailSender);
   }

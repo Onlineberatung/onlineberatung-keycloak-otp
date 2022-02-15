@@ -1,11 +1,11 @@
 package de.diakonie.onlineberatung.authenticator;
 
-import static de.diakonie.onlineberatung.RealmOtpResourceProvider.OTP_MAIL_AUTHENTICATION_ATTRIBUTE;
 import static de.diakonie.onlineberatung.authenticator.OtpParameterAuthenticator.extractDecodedOtpParam;
 import static de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpType.EMAIL;
-import static java.lang.Boolean.parseBoolean;
 import static java.util.Objects.isNull;
+import static java.util.Objects.nonNull;
 
+import de.diakonie.onlineberatung.credential.MailOtpCredentialModel;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.Challenge;
 import de.diakonie.onlineberatung.otp.OtpMailSender;
 import de.diakonie.onlineberatung.otp.OtpService;
@@ -38,20 +38,30 @@ public class OtpMailAuthenticator extends AbstractDirectGrantAuthenticator {
   @Override
   public boolean configuredFor(KeycloakSession keycloakSession, RealmModel realmModel,
       UserModel userModel) {
-    return parseBoolean(userModel.getFirstAttribute(OTP_MAIL_AUTHENTICATION_ATTRIBUTE));
+    var mailOtpCredentialModel = otpService.getCredential(keycloakSession, realmModel, userModel);
+    return nonNull(mailOtpCredentialModel) && mailOtpCredentialModel.getOtp().isActive();
   }
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
     var user = context.getUser();
+    var realm = context.getRealm();
+    var credentialModel = otpService.getCredential(context.getSession(), realm, user);
 
-    var otpOfRequest = extractDecodedOtpParam(context);
-    if (isNull(otpOfRequest) || otpOfRequest.isBlank()) {
-      sendOtpMail(context, user);
+    if (isNull(credentialModel)) {
+      context.failure(AuthenticationFlowError.INVALID_CREDENTIALS,
+          errorResponse(Status.UNAUTHORIZED.getStatusCode(),
+              "invalid_grant", "No corresponding code"));
       return;
     }
 
-    validateOtp(context, user.getUsername(), otpOfRequest);
+    var otpOfRequest = extractDecodedOtpParam(context);
+    if (isNull(otpOfRequest) || otpOfRequest.isBlank()) {
+      sendOtpMail(context, user, credentialModel);
+      return;
+    }
+
+    validateOtp(context, user, otpOfRequest, credentialModel);
   }
 
   @Override
@@ -64,12 +74,14 @@ public class OtpMailAuthenticator extends AbstractDirectGrantAuthenticator {
 
   }
 
-  private void sendOtpMail(AuthenticationFlowContext context, UserModel user) {
-    var username = user.getUsername();
+  private void sendOtpMail(AuthenticationFlowContext context, UserModel user,
+      MailOtpCredentialModel credentialModel) {
+    var realm = context.getRealm();
     var emailAddress = user.getEmail();
 
     try {
-      var otp = otpService.createOtp(username, emailAddress);
+      var otp = otpService.createOtp(emailAddress, true);
+      otpService.update(credentialModel, realm, user, otp);
       mailSender.sendOtpCode(otp, context.getSession(), user, emailAddress);
 
       var challengeResponse = new Challenge().error("invalid_grant")
@@ -78,16 +90,18 @@ public class OtpMailAuthenticator extends AbstractDirectGrantAuthenticator {
           Response.status(Status.BAD_REQUEST).entity(challengeResponse)
               .type(MediaType.APPLICATION_JSON_TYPE).build());
     } catch (Exception e) {
+      otpService.invalidate(credentialModel, realm, user);
       logger.error("failed to send otp mail", e);
-      otpService.invalidate(username);
       context.failure(AuthenticationFlowError.INTERNAL_ERROR,
           errorResponse(Status.INTERNAL_SERVER_ERROR.getStatusCode(),
               "internal_error", "failed to send otp email"));
     }
   }
 
-  private void validateOtp(AuthenticationFlowContext context, String username, String otpRequest) {
-    switch (otpService.validate(otpRequest, username)) {
+  private void validateOtp(AuthenticationFlowContext context, UserModel user, String otpRequest,
+      MailOtpCredentialModel credentialModel) {
+    var realm = context.getRealm();
+    switch (otpService.validate(otpRequest, credentialModel, realm, user)) {
       case NOT_PRESENT:
         context.failure(AuthenticationFlowError.INVALID_CREDENTIALS,
             errorResponse(Status.UNAUTHORIZED.getStatusCode(),
