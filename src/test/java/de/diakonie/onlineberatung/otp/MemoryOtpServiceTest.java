@@ -1,4 +1,4 @@
-package de.diakonie.onlineberatung.mail;
+package de.diakonie.onlineberatung.otp;
 
 import static de.diakonie.onlineberatung.otp.ValidationResult.INVALID;
 import static de.diakonie.onlineberatung.otp.ValidationResult.NOT_PRESENT;
@@ -8,22 +8,19 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import de.diakonie.onlineberatung.otp.MemoryOtpService;
-import de.diakonie.onlineberatung.otp.Otp;
-import de.diakonie.onlineberatung.otp.OtpGenerator;
-import de.diakonie.onlineberatung.otp.ValidationResult;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.HashMap;
+import java.util.Map;
 import org.junit.Before;
 import org.junit.Test;
 import org.keycloak.models.AuthenticatorConfigModel;
 
 public class MemoryOtpServiceTest {
 
-  private HashMap<String, Otp> otpStore;
+  private OtpStore otpStore;
   private MemoryOtpService memoryOtpService;
   private OtpGenerator otpGenerator;
   private Clock fixed;
@@ -32,16 +29,16 @@ public class MemoryOtpServiceTest {
   public void setUp() {
     fixed = Clock.fixed(LocalDateTime.of(2022, 2, 3, 13, 13, 0).toInstant(ZoneOffset.UTC),
         ZoneId.of("UTC"));
-    otpStore = new HashMap<>();
+    otpStore = new TestOtpStore(new HashMap<>());
     otpGenerator = mock(OtpGenerator.class);
-    memoryOtpService = new MemoryOtpService(otpStore, otpGenerator, fixed);
+    memoryOtpService = new MemoryOtpService(otpStore, otpGenerator, fixed, null);
   }
 
   @Test
   public void should_create_and_store_otp_with_default_ttl_and_expiry() {
     when(otpGenerator.generate(6)).thenReturn("123456");
 
-    var otp = memoryOtpService.createOtp(null, "Ansgar", "hk@test.de");
+    var otp = memoryOtpService.createOtp("Ansgar", "hk@test.de");
 
     var expected = new Otp("123456", 300, 1643894280000L, "hk@test.de");
     assertThat(otpStore.get("ansgar")).isEqualTo(expected);
@@ -56,9 +53,10 @@ public class MemoryOtpServiceTest {
     when(authConfig.getConfig()).thenReturn(internalConfig);
     internalConfig.put("ttl", "500");
     internalConfig.put("length", "8");
+    memoryOtpService = new MemoryOtpService(otpStore, otpGenerator, fixed, authConfig);
     when(otpGenerator.generate(8)).thenReturn("12345678");
 
-    var otp = memoryOtpService.createOtp(authConfig, "Ansgar", "hk@test.de");
+    var otp = memoryOtpService.createOtp("Ansgar", "hk@test.de");
 
     var expected = new Otp("12345678", 500, 1643894480000L, "hk@test.de");
     assertThat(memoryOtpService.get("Ansgar")).isEqualTo(expected);
@@ -119,7 +117,32 @@ public class MemoryOtpServiceTest {
     assertThat(memoryOtpService.validate("1", "creativeusername")).isEqualTo(INVALID);
     assertThat(memoryOtpService.validate("2", "creativeusername")).isEqualTo(INVALID);
     assertThat(memoryOtpService.validate("3", "creativeusername")).isEqualTo(INVALID);
-    assertThat(memoryOtpService.validate("4", "creativeusername")).isEqualTo(TOO_MANY_FAILED_ATTEMPTS);
+    assertThat(memoryOtpService.validate("4", "creativeusername")).isEqualTo(
+        TOO_MANY_FAILED_ATTEMPTS);
     assertThat(memoryOtpService.validate("4711", "creativeusername")).isEqualTo(NOT_PRESENT);
+  }
+
+  private static class TestOtpStore implements OtpStore {
+
+    private final Map<String, Otp> store;
+
+    TestOtpStore(Map<String, Otp> store) {
+      this.store = store;
+    }
+
+    @Override
+    public void put(String key, Otp otp) {
+      store.put(key, otp);
+    }
+
+    @Override
+    public Otp get(String key) {
+      return store.get(key);
+    }
+
+    @Override
+    public void remove(String key) {
+      store.remove(key);
+    }
   }
 }

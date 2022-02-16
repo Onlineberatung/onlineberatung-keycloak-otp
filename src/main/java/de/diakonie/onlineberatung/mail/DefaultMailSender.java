@@ -1,6 +1,7 @@
 package de.diakonie.onlineberatung.mail;
 
 import de.diakonie.onlineberatung.otp.Otp;
+import de.diakonie.onlineberatung.otp.OtpMailSender;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;

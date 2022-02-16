@@ -10,7 +10,7 @@ import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.gene
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpType;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.Success;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.SuccessWithEmail;
-import de.diakonie.onlineberatung.mail.OtpMailSender;
+import de.diakonie.onlineberatung.otp.OtpMailSender;
 import de.diakonie.onlineberatung.otp.OtpService;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -23,6 +23,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import org.jboss.logging.Logger;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
@@ -40,6 +41,7 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
   public static final String OTP_CONFIG_ALIAS = "email-otp-config";
   public static final String OTP_MAIL_AUTHENTICATION_ATTRIBUTE = "otp-mail-authentication";
 
+  private static final Logger logger = Logger.getLogger(RealmOtpResourceProvider.class);
   private static final String MISSING_PARAMETER_ERROR = "invalid_parameter";
   private static final String MISSING_USERNAME_ERROR_DESCRIPTION = "username not found";
   private static final String MISSING_EMAIL_ADDRESS_ERROR_DESCRIPTION = "email address of user not available";
@@ -91,6 +93,7 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
     }
 
     String otpSecret = HmacOTP.generateSecret(KEY_LENGTH);
+    otpInfoDTO.setOtpSetup(false);
     otpInfoDTO.setOtpSecret(otpSecret);
     otpInfoDTO.setOtpSecretQrCode(TotpUtils.qrCode(otpSecret, realm, user));
     return Response.ok(otpInfoDTO).build();
@@ -177,11 +180,10 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
     }
 
     try {
-      var authConfig = realm.getAuthenticatorConfigByAlias(OTP_CONFIG_ALIAS);
-      var otp = otpService.createOtp(authConfig, username, mailSetup.getEmail());
+      var otp = otpService.createOtp(username, emailAddress);
       mailSender.sendOtpCode(otp, session, user, emailAddress);
     } catch (Exception e) {
-      e.printStackTrace();
+      logger.error("failed to send verification mail", e);
       otpService.invalidate(username);
       return Response.status(Status.INTERNAL_SERVER_ERROR).entity(new Error().error(FAILED_TO_SENT))
           .build();

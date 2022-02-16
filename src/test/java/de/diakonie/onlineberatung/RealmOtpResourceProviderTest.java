@@ -11,8 +11,8 @@ import static org.mockito.Mockito.when;
 import de.diakonie.onlineberatung.authenticator.SessionAuthenticator;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpSetupDTO;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.SuccessWithEmail;
-import de.diakonie.onlineberatung.mail.OtpMailSender;
 import de.diakonie.onlineberatung.otp.Otp;
+import de.diakonie.onlineberatung.otp.OtpMailSender;
 import de.diakonie.onlineberatung.otp.OtpService;
 import de.diakonie.onlineberatung.otp.ValidationResult;
 import java.io.IOException;
@@ -57,7 +57,7 @@ public class RealmOtpResourceProviderTest {
     var mailSetup = new OtpSetupDTO();
     mailSetup.setEmail("hk@test.de");
     var otp = new Otp("123", 450L, 1234567L, "hk@test.de");
-    when(otpService.createOtp(null, "heinrich", "hk@test.de")).thenReturn(otp);
+    when(otpService.createOtp("heinrich", "hk@test.de")).thenReturn(otp);
 
     var response = resourceProvider.sendVerificationMail("heinrich", mailSetup);
 
@@ -88,7 +88,7 @@ public class RealmOtpResourceProviderTest {
     var mailSetup = new OtpSetupDTO();
     mailSetup.setEmail("hk@test.de");
     var otp = new Otp("123", 450L, 1234567L, "hk@test.de");
-    when(otpService.createOtp(null, "heinrich", "hk@test.de")).thenReturn(otp);
+    when(otpService.createOtp("heinrich", "hk@test.de")).thenReturn(otp);
     doThrow(IOException.class).when(mailSender).sendOtpCode(any(), any(), any(), any());
 
     var response = resourceProvider.sendVerificationMail("heinrich", mailSetup);
