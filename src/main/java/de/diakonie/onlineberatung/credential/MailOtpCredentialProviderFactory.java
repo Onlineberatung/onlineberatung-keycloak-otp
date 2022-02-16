@@ -7,7 +7,7 @@ import org.keycloak.models.KeycloakSession;
 public class MailOtpCredentialProviderFactory implements
     CredentialProviderFactory<MailOtpCredentialProvider> {
 
-  public static final String PROVIDER_ID = "otp-factory";
+  public static final String PROVIDER_ID = "MAIL_OTP";
 
   @Override
   public MailOtpCredentialProvider create(KeycloakSession session) {

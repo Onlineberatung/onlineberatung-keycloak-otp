@@ -7,6 +7,7 @@ public class MailOtpCredentialData {
   private int failedVerifications;
   private boolean active;
 
+  // for json de/serialization
   public MailOtpCredentialData() {
   }
 

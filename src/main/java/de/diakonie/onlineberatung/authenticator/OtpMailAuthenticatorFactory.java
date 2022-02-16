@@ -22,7 +22,7 @@ public class OtpMailAuthenticatorFactory implements AuthenticatorFactory {
 
   @Override
   public String getId() {
-    return "email-authenticator";
+    return OtpMailAuthenticator.AUTHENTICATOR_ID;
   }
 
   @Override

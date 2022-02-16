@@ -93,7 +93,8 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
       return Response.ok(otpInfoDTO).build();
     }
 
-    var credential = mailCredentialService.getCredential(new CredentialContext(session, realm, user));
+    var credential = mailCredentialService.getCredential(
+        new CredentialContext(session, realm, user));
     var isMail2FaConfigured = nonNull(credential) && credential.isActive();
     if (isMail2FaConfigured) {
       otpInfoDTO.setOtpSetup(true);

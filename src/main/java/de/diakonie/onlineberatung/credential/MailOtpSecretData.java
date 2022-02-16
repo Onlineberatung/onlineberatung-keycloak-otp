@@ -5,6 +5,7 @@ public class MailOtpSecretData {
   private String code;
   private long expiry;
 
+  // for json de/serialization
   public MailOtpSecretData() {
   }
 

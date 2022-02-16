@@ -1,6 +1,7 @@
 package de.diakonie.onlineberatung.credential;
 
 import de.diakonie.onlineberatung.RealmOtpResourceProvider;
+import de.diakonie.onlineberatung.authenticator.OtpMailAuthenticator;
 import java.time.Clock;
 import org.jboss.logging.Logger;
 import org.keycloak.credential.CredentialInput;
@@ -63,8 +64,8 @@ public class MailOtpCredentialProvider implements CredentialProvider<MailOtpCred
         .type(getType())
         .category(CredentialTypeMetadata.Category.TWO_FACTOR)
         .displayName(MailOtpCredentialProviderFactory.PROVIDER_ID)
-        .helpText("create otp")
-        .createAction(MailOtpCredentialProviderFactory.PROVIDER_ID)
+        .helpText("create email otp")
+        .createAction(OtpMailAuthenticator.AUTHENTICATOR_ID)
         .removeable(false)
         .build(session);
   }

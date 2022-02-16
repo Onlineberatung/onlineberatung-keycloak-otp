@@ -27,6 +27,8 @@ import org.keycloak.provider.ProviderConfigProperty;
 
 public class OtpMailAuthenticator extends AbstractDirectGrantAuthenticator {
 
+  public static String AUTHENTICATOR_ID = "email-authenticator";
+
   private static final Logger logger = Logger.getLogger(OtpMailAuthenticator.class);
 
   private final OtpService otpService;
