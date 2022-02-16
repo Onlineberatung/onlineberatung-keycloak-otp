@@ -5,6 +5,8 @@ import static de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextensi
 import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
 
+import de.diakonie.onlineberatung.credential.CredentialContext;
+import de.diakonie.onlineberatung.credential.CredentialService;
 import de.diakonie.onlineberatung.credential.MailOtpCredentialModel;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.Challenge;
 import de.diakonie.onlineberatung.otp.OtpMailSender;
@@ -28,40 +30,36 @@ public class OtpMailAuthenticator extends AbstractDirectGrantAuthenticator {
   private static final Logger logger = Logger.getLogger(OtpMailAuthenticator.class);
 
   private final OtpService otpService;
+  private final CredentialService credentialService;
   private final OtpMailSender mailSender;
 
-  public OtpMailAuthenticator(OtpService otpService, OtpMailSender mailSender) {
+  public OtpMailAuthenticator(OtpService otpService, CredentialService credentialService,
+      OtpMailSender mailSender) {
     this.otpService = otpService;
+    this.credentialService = credentialService;
     this.mailSender = mailSender;
   }
 
   @Override
   public boolean configuredFor(KeycloakSession keycloakSession, RealmModel realmModel,
       UserModel userModel) {
-    var mailOtpCredentialModel = otpService.getCredential(keycloakSession, realmModel, userModel);
-    return nonNull(mailOtpCredentialModel) && mailOtpCredentialModel.getOtp().isActive();
+    var context = new CredentialContext(keycloakSession, realmModel, userModel);
+    var mailOtpCredentialModel = credentialService.getCredential(context);
+    return nonNull(mailOtpCredentialModel) && mailOtpCredentialModel.isActive();
   }
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
-    var user = context.getUser();
-    var realm = context.getRealm();
-    var credentialModel = otpService.getCredential(context.getSession(), realm, user);
-
-    if (isNull(credentialModel)) {
-      context.failure(AuthenticationFlowError.INVALID_CREDENTIALS,
-          errorResponse(Status.UNAUTHORIZED.getStatusCode(),
-              "invalid_grant", "No corresponding code"));
-      return;
-    }
+    var credContext = CredentialContext.fromAuthFlow(context);
+    var credentialModel = credentialService.getCredential(credContext);
 
     var otpOfRequest = extractDecodedOtpParam(context);
     if (isNull(otpOfRequest) || otpOfRequest.isBlank()) {
-      sendOtpMail(context, user, credentialModel);
+      sendOtpMail(credentialModel, credContext, context);
       return;
     }
 
-    validateOtp(context, user, otpOfRequest, credentialModel);
+    validateOtp(otpOfRequest, credentialModel, context, credContext);
   }
 
   @Override
@@ -74,15 +72,14 @@ public class OtpMailAuthenticator extends AbstractDirectGrantAuthenticator {
 
   }
 
-  private void sendOtpMail(AuthenticationFlowContext context, UserModel user,
-      MailOtpCredentialModel credentialModel) {
-    var realm = context.getRealm();
-    var emailAddress = user.getEmail();
+  private void sendOtpMail(MailOtpCredentialModel credentialModel, CredentialContext credContext,
+      AuthenticationFlowContext context) {
+    var emailAddress = context.getUser().getEmail();
 
     try {
-      var otp = otpService.createOtp(emailAddress, true);
-      otpService.update(credentialModel, realm, user, otp);
-      mailSender.sendOtpCode(otp, context.getSession(), user, emailAddress);
+      var otp = otpService.createOtp(emailAddress);
+      credentialService.update(credentialModel.updateFrom(otp), credContext);
+      mailSender.sendOtpCode(otp, context.getSession(), credContext.getUser(), emailAddress);
 
       var challengeResponse = new Challenge().error("invalid_grant")
           .errorDescription("Missing totp").otpType(EMAIL);
@@ -90,7 +87,7 @@ public class OtpMailAuthenticator extends AbstractDirectGrantAuthenticator {
           Response.status(Status.BAD_REQUEST).entity(challengeResponse)
               .type(MediaType.APPLICATION_JSON_TYPE).build());
     } catch (Exception e) {
-      otpService.invalidate(credentialModel, realm, user);
+      credentialService.invalidate(credentialModel, credContext);
       logger.error("failed to send otp mail", e);
       context.failure(AuthenticationFlowError.INTERNAL_ERROR,
           errorResponse(Status.INTERNAL_SERVER_ERROR.getStatusCode(),
@@ -98,10 +95,11 @@ public class OtpMailAuthenticator extends AbstractDirectGrantAuthenticator {
     }
   }
 
-  private void validateOtp(AuthenticationFlowContext context, UserModel user, String otpRequest,
-      MailOtpCredentialModel credentialModel) {
-    var realm = context.getRealm();
-    switch (otpService.validate(otpRequest, credentialModel, realm, user)) {
+  private void validateOtp(String otpRequest, MailOtpCredentialModel credentialModel,
+      AuthenticationFlowContext context, CredentialContext credContext) {
+    var otp = credentialModel.getOtp();
+
+    switch (otpService.validate(otpRequest, otp)) {
       case NOT_PRESENT:
         context.failure(AuthenticationFlowError.INVALID_CREDENTIALS,
             errorResponse(Status.UNAUTHORIZED.getStatusCode(),
@@ -113,6 +111,8 @@ public class OtpMailAuthenticator extends AbstractDirectGrantAuthenticator {
                 "invalid_grant", "Code expired"));
         break;
       case INVALID:
+        credentialModel.updateFailedVerifications(otp.getFailedVerifications() + 1);
+        credentialService.update(credentialModel, credContext);
         context.failure(AuthenticationFlowError.INVALID_CREDENTIALS,
             errorResponse(Status.UNAUTHORIZED.getStatusCode(),
                 "invalid_grant", "Invalid code"));
@@ -123,6 +123,7 @@ public class OtpMailAuthenticator extends AbstractDirectGrantAuthenticator {
                 "invalid_grant", "Maximal number of failed attempts reached"));
         break;
       case VALID:
+        credentialService.invalidate(credentialModel, credContext);
         context.success();
         break;
       default:

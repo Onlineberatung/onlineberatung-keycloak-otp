@@ -5,68 +5,17 @@ import static org.keycloak.util.JsonSerialization.writeValueAsString;
 import de.diakonie.onlineberatung.otp.Otp;
 import java.io.IOException;
 import java.time.Clock;
+import org.jetbrains.annotations.NotNull;
 import org.keycloak.credential.CredentialModel;
 import org.keycloak.util.JsonSerialization;
 
 public class MailOtpCredentialModel extends CredentialModel {
 
   public static final String TYPE = "MAIL_OTP_CM";
+  public static final String INVALIDATED = "INVALIDATED";
 
   private final MailOtpCredentialData credentialData;
   private final MailOtpSecretData secretData;
-
-  public MailOtpCredentialModel(Otp otp) {
-    this.credentialData = new MailOtpCredentialData(otp.getTtlInSeconds(), otp.getExpiry(),
-        otp.getEmail(), otp.getFailedVerifications(), otp.isActive());
-    this.secretData = new MailOtpSecretData(otp.getCode());
-  }
-
-  public MailOtpCredentialModel(String code, long ttlInSeconds, long expiry, String email,
-      int failedVerifications, boolean active) {
-    this.credentialData = new MailOtpCredentialData(ttlInSeconds, expiry, email,
-        failedVerifications, active);
-    this.secretData = new MailOtpSecretData(code);
-  }
-
-  public Otp getOtp() {
-    return new Otp(secretData.getCode(), credentialData.getTtlInSeconds(),
-        credentialData.getExpiry(), credentialData.getEmail(),
-        credentialData.getFailedVerifications(), credentialData.isActive()
-    );
-  }
-
-  public static MailOtpCredentialModel createOtpModel(Otp otp, Clock clock) {
-    var credentialModel = new MailOtpCredentialModel(otp);
-    try {
-      credentialModel.setCredentialData(
-          writeValueAsString(credentialModel.credentialData));
-      credentialModel.setSecretData(
-          writeValueAsString(credentialModel.secretData));
-      credentialModel.setType(TYPE);
-      credentialModel.setCreatedDate(clock.millis());
-    } catch (IOException e) {
-      throw new RuntimeException("failed to create MailOtpCredentialModel", e);
-    }
-    return credentialModel;
-  }
-
-  public MailOtpCredentialModel updateFrom(Otp otp) {
-    credentialData.setEmail(otp.getEmail());
-    credentialData.setFailedVerifications(otp.getFailedVerifications());
-    credentialData.setActive(otp.isActive());
-    credentialData.setTtlInSeconds(otp.getTtlInSeconds());
-    credentialData.setExpiry(otp.getExpiry());
-
-    secretData.setCode(otp.getCode());
-
-    try {
-      setCredentialData(writeValueAsString(credentialData));
-      setSecretData(writeValueAsString(secretData));
-    } catch (IOException e) {
-      throw new RuntimeException("failed to create MailOtpCredentialModel", e);
-    }
-    return this;
-  }
 
   public static MailOtpCredentialModel createFromCredentialModel(CredentialModel credentialModel) {
     try {
@@ -74,15 +23,11 @@ public class MailOtpCredentialModel extends CredentialModel {
           MailOtpCredentialData.class);
       var secretData = JsonSerialization.readValue(credentialModel.getSecretData(),
           MailOtpSecretData.class);
-      var otpCredentialModel = new MailOtpCredentialModel(secretData.getCode(),
-          credentialData.getTtlInSeconds(), credentialData.getExpiry(), credentialData.getEmail(),
-          credentialData.getFailedVerifications(), credentialData.isActive());
-      otpCredentialModel.setUserLabel(otpCredentialModel.getUserLabel());
-      otpCredentialModel.setCreatedDate(otpCredentialModel.getCreatedDate());
+      var otpCredentialModel = new MailOtpCredentialModel(credentialData, secretData);
+      otpCredentialModel.setUserLabel(credentialModel.getUserLabel());
+      otpCredentialModel.setCreatedDate(credentialModel.getCreatedDate());
       otpCredentialModel.setType(TYPE);
-      otpCredentialModel.setId(otpCredentialModel.getId());
-      otpCredentialModel.setSecretData(otpCredentialModel.getSecretData());
-      otpCredentialModel.setCredentialData(otpCredentialModel.getCredentialData());
+      otpCredentialModel.setId(credentialModel.getId());
       return otpCredentialModel;
     } catch (IOException e) {
       throw new RuntimeException("failed to create MailOtpCredentialModel from credential model",
@@ -90,31 +35,84 @@ public class MailOtpCredentialModel extends CredentialModel {
     }
   }
 
+  public static MailOtpCredentialModel createOtpModel(Otp otp, Clock clock) {
+    var credentialModel = new MailOtpCredentialModel(otp.getCode(), otp.getTtlInSeconds(),
+        otp.getExpiry(), otp.getEmail(), otp.getFailedVerifications(), false);
+    return serialize(clock, credentialModel);
+  }
+
+  public static MailOtpCredentialModel createOtpModel(Otp otp, Clock clock, boolean active) {
+    var credentialModel = new MailOtpCredentialModel(otp.getCode(), otp.getTtlInSeconds(),
+        otp.getExpiry(), otp.getEmail(), otp.getFailedVerifications(), active);
+    return serialize(clock, credentialModel);
+  }
+
+  @NotNull
+  private static MailOtpCredentialModel serialize(Clock clock,
+      MailOtpCredentialModel credentialModel) {
+    credentialModel.setType(TYPE);
+    credentialModel.setCreatedDate(clock.millis());
+    credentialModel.updateInternalModel();
+    return credentialModel;
+  }
+
+  private MailOtpCredentialModel(String code, long ttlInSeconds, long expiry, String email,
+      int failedVerifications, boolean active) {
+    this.credentialData = new MailOtpCredentialData(ttlInSeconds, email,
+        failedVerifications, active);
+    this.secretData = new MailOtpSecretData(code, expiry);
+  }
+
+  private MailOtpCredentialModel(MailOtpCredentialData credentialData,
+      MailOtpSecretData secretData) {
+    this.credentialData = credentialData;
+    this.secretData = secretData;
+  }
+
+  public Otp getOtp() {
+    return new Otp(secretData.getCode(), credentialData.getTtlInSeconds(),
+        secretData.getExpiry(), credentialData.getEmail(),
+        credentialData.getFailedVerifications()
+    );
+  }
+
+  public MailOtpCredentialModel updateFrom(Otp otp) {
+    credentialData.setEmail(otp.getEmail());
+    credentialData.setFailedVerifications(otp.getFailedVerifications());
+    credentialData.setTtlInSeconds(otp.getTtlInSeconds());
+
+    secretData.setExpiry(otp.getExpiry());
+    secretData.setCode(otp.getCode());
+
+    updateInternalModel();
+    return this;
+  }
+
+  public boolean isActive() {
+    return credentialData.isActive();
+  }
+
   public void updateFailedVerifications(int failedVerifications) {
     this.credentialData.setFailedVerifications(failedVerifications);
-    try {
-      setCredentialData(writeValueAsString(credentialData));
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    updateInternalModel();
   }
 
   public void setActive() {
     this.credentialData.setActive(true);
-    try {
-      setCredentialData(writeValueAsString(credentialData));
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    updateInternalModel();
   }
 
   public void updateCode(String code) {
     this.secretData.setCode(code);
+    updateInternalModel();
+  }
+
+  private void updateInternalModel() {
     try {
+      setCredentialData(writeValueAsString(credentialData));
       setSecretData(writeValueAsString(secretData));
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
   }
-
 }

@@ -4,6 +4,7 @@ import static de.diakonie.onlineberatung.RealmOtpResourceProvider.OTP_CONFIG_ALI
 import static java.util.Arrays.asList;
 
 import de.diakonie.onlineberatung.credential.MailOtpCredentialProviderFactory;
+import de.diakonie.onlineberatung.credential.MailOtpCredentialService;
 import de.diakonie.onlineberatung.mail.DefaultMailSender;
 import de.diakonie.onlineberatung.otp.MemoryOtpService;
 import de.diakonie.onlineberatung.otp.RandomDigitsCodeGenerator;
@@ -12,7 +13,7 @@ import java.util.List;
 import org.keycloak.Config;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.authentication.AuthenticatorFactory;
-import org.keycloak.models.AuthenticationExecutionModel;
+import org.keycloak.models.AuthenticationExecutionModel.Requirement;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.provider.ProviderConfigProperty;
@@ -50,12 +51,9 @@ public class OtpMailAuthenticatorFactory implements AuthenticatorFactory {
   }
 
   @Override
-  public AuthenticationExecutionModel.Requirement[] getRequirementChoices() {
-    return new AuthenticationExecutionModel.Requirement[]{
-        AuthenticationExecutionModel.Requirement.REQUIRED,
-        AuthenticationExecutionModel.Requirement.ALTERNATIVE,
-        AuthenticationExecutionModel.Requirement.DISABLED,
-    };
+  public Requirement[] getRequirementChoices() {
+    return new Requirement[]{Requirement.REQUIRED, Requirement.ALTERNATIVE, Requirement.CONDITIONAL,
+        Requirement.DISABLED,};
   }
 
   @Override
@@ -82,10 +80,10 @@ public class OtpMailAuthenticatorFactory implements AuthenticatorFactory {
     var generator = new RandomDigitsCodeGenerator();
     var systemClock = Clock.systemDefaultZone();
     var mailOtpCredentialProvider = new MailOtpCredentialProviderFactory().create(session);
-    var otpService = new MemoryOtpService(mailOtpCredentialProvider, generator, systemClock,
-        authConfig);
+    var credentialService = new MailOtpCredentialService(mailOtpCredentialProvider, systemClock);
+    var otpService = new MemoryOtpService(generator, systemClock, authConfig);
     var mailSender = new DefaultMailSender();
-    return new OtpMailAuthenticator(otpService, mailSender);
+    return new OtpMailAuthenticator(otpService, credentialService, mailSender);
   }
 
   @Override

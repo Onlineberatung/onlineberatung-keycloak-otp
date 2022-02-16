@@ -4,7 +4,8 @@ import java.time.Clock;
 import org.keycloak.credential.CredentialProviderFactory;
 import org.keycloak.models.KeycloakSession;
 
-public class MailOtpCredentialProviderFactory implements CredentialProviderFactory<MailOtpCredentialProvider> {
+public class MailOtpCredentialProviderFactory implements
+    CredentialProviderFactory<MailOtpCredentialProvider> {
 
   public static final String PROVIDER_ID = "otp-factory";
 

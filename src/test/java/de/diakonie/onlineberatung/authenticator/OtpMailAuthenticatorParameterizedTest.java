@@ -1,17 +1,20 @@
 package de.diakonie.onlineberatung.authenticator;
 
+import static de.diakonie.onlineberatung.credential.MailOtpCredentialModel.createOtpModel;
+import static java.time.Clock.systemDefaultZone;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import de.diakonie.onlineberatung.credential.CredentialContext;
+import de.diakonie.onlineberatung.credential.CredentialService;
 import de.diakonie.onlineberatung.credential.MailOtpCredentialModel;
 import de.diakonie.onlineberatung.otp.Otp;
 import de.diakonie.onlineberatung.otp.OtpMailSender;
 import de.diakonie.onlineberatung.otp.OtpService;
 import de.diakonie.onlineberatung.otp.ValidationResult;
-import java.time.Clock;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -33,10 +36,8 @@ import org.mockito.ArgumentCaptor;
 @RunWith(Parameterized.class)
 public class OtpMailAuthenticatorParameterizedTest {
 
-
-  private KeycloakSession session;
-  private RealmModel realm;
-  private UserModel user;
+  private CredentialService credentialService;
+  private CredentialContext credentialContext;
 
   @Parameters(name = "Test {index}: authenticate ValidationResult{0} = http {1} flowError {2}")
   public static Collection<Object[]> data() {
@@ -73,25 +74,25 @@ public class OtpMailAuthenticatorParameterizedTest {
     decodedFormParams.put("otp", Collections.singletonList("765432"));
     when(httpRequest.getDecodedFormParameters()).thenReturn(decodedFormParams);
     otpService = mock(OtpService.class);
-    realm = mock(RealmModel.class);
+    RealmModel realm = mock(RealmModel.class);
     when(authFlow.getRealm()).thenReturn(realm);
-    user = mock(UserModel.class);
+    UserModel user = mock(UserModel.class);
     when(user.getUsername()).thenReturn("katharina");
     when(authFlow.getUser()).thenReturn(user);
-    session = mock(KeycloakSession.class);
+    KeycloakSession session = mock(KeycloakSession.class);
     when(authFlow.getSession()).thenReturn(session);
-    authenticator = new OtpMailAuthenticator(otpService, mock(OtpMailSender.class));
+    credentialService = mock(CredentialService.class);
+    credentialContext = new CredentialContext(session, realm, user);
+    authenticator = new OtpMailAuthenticator(otpService, credentialService,
+        mock(OtpMailSender.class));
   }
 
   @Test
   public void authenticate_otp_validation() {
-    MailOtpCredentialModel credentialModel = MailOtpCredentialModel.createOtpModel(
-        new Otp("765432", 11L, 112L, null, 0, true),
-        Clock.systemDefaultZone());
-    when(otpService.getCredential(session, realm, user)).thenReturn(credentialModel);
-    when(otpService.getCredential(session, realm, user)).thenReturn(
-        credentialModel);
-    when(otpService.validate("765432", credentialModel, realm, user)).thenReturn(input);
+    var otp = new Otp("765432", 11L, 112L, null, 0);
+    MailOtpCredentialModel credentialModel = createOtpModel(otp, systemDefaultZone());
+    when(credentialService.getCredential(credentialContext)).thenReturn(credentialModel);
+    when(otpService.validate("765432", otp)).thenReturn(input);
 
     authenticator.authenticate(authFlow);
 

@@ -6,7 +6,7 @@ import java.util.List;
 import org.keycloak.Config;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.authentication.AuthenticatorFactory;
-import org.keycloak.models.AuthenticationExecutionModel;
+import org.keycloak.models.AuthenticationExecutionModel.Requirement;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.provider.ProviderConfigProperty;
@@ -44,12 +44,9 @@ public class OtpAppAuthenticatorFactory implements AuthenticatorFactory {
   }
 
   @Override
-  public AuthenticationExecutionModel.Requirement[] getRequirementChoices() {
-    return new AuthenticationExecutionModel.Requirement[]{
-        AuthenticationExecutionModel.Requirement.REQUIRED,
-        AuthenticationExecutionModel.Requirement.ALTERNATIVE,
-        AuthenticationExecutionModel.Requirement.DISABLED,
-    };
+  public Requirement[] getRequirementChoices() {
+    return new Requirement[]{Requirement.REQUIRED, Requirement.ALTERNATIVE, Requirement.CONDITIONAL,
+        Requirement.DISABLED,};
   }
 
   @Override

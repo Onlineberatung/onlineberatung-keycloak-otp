@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import de.diakonie.onlineberatung.authenticator.SessionAuthenticator;
+import de.diakonie.onlineberatung.credential.CredentialService;
 import de.diakonie.onlineberatung.credential.MailOtpCredentialModel;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpSetupDTO;
 import de.diakonie.onlineberatung.otp.Otp;
@@ -29,10 +30,6 @@ import org.keycloak.models.UserProvider;
 @RunWith(Parameterized.class)
 public class RealmOtpResourceProviderParameterizedTest {
 
-  private MailOtpCredentialModel credentialModel;
-  private RealmModel realm;
-  private UserModel user;
-
   @Parameters(name = "Test {index}: setupOtpMail({0})={1}")
   public static Collection<Object[]> data() {
     return Arrays.asList(new Object[][]{
@@ -52,6 +49,7 @@ public class RealmOtpResourceProviderParameterizedTest {
     this.httpStatusExpected = httpStatusExpected;
   }
 
+  private Otp otp;
   private OtpService otpService;
   private RealmOtpResourceProvider resourceProvider;
 
@@ -59,22 +57,23 @@ public class RealmOtpResourceProviderParameterizedTest {
   public void setUp() {
     var session = mock(KeycloakSession.class);
     otpService = mock(OtpService.class);
-    credentialModel = MailOtpCredentialModel.createOtpModel(
-        new Otp("123", 11L, 112L, null, 0,true),
-        Clock.systemDefaultZone());
-    when(otpService.getCredential(any(), any(), any())).thenReturn(credentialModel);
+    CredentialService credentialService = mock(CredentialService.class);
+    otp = new Otp("123", 11L, 112L, null, 0);
+    MailOtpCredentialModel credentialModel = MailOtpCredentialModel.createOtpModel(otp,
+        Clock.systemDefaultZone(), false);
+    when(credentialService.getCredential(any())).thenReturn(credentialModel);
     var mailSender = mock(OtpMailSender.class);
     var sessionAuthenticator = mock(SessionAuthenticator.class);
     var keycloakContext = mock(KeycloakContext.class);
     when(session.getContext()).thenReturn(keycloakContext);
-    realm = mock(RealmModel.class);
+    RealmModel realm = mock(RealmModel.class);
     when(keycloakContext.getRealm()).thenReturn(realm);
     var userProvider = mock(UserProvider.class);
     when(session.users()).thenReturn(userProvider);
-    user = mock(UserModel.class);
+    UserModel user = mock(UserModel.class);
     when(userProvider.getUserByUsername(realm, "heinrich")).thenReturn(user);
     resourceProvider = new RealmOtpResourceProvider(session, otpService, mailSender,
-        sessionAuthenticator);
+        sessionAuthenticator, credentialService);
   }
 
   @Test
@@ -82,7 +81,7 @@ public class RealmOtpResourceProviderParameterizedTest {
     var mailSetup = new OtpSetupDTO();
     mailSetup.setEmail("hk@test.de");
     mailSetup.setInitialCode("123");
-    when(otpService.validate("123", credentialModel,realm,user)).thenReturn(input);
+    when(otpService.validate("123", otp)).thenReturn(input);
 
     var response = resourceProvider.setupOtpMail("heinrich", mailSetup);
 

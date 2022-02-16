@@ -2,11 +2,16 @@ package de.diakonie.onlineberatung.credential;
 
 public class MailOtpSecretData {
 
-  public MailOtpSecretData(String code) {
-    this.code = code;
+  private String code;
+  private long expiry;
+
+  public MailOtpSecretData() {
   }
 
-  private String code;
+  public MailOtpSecretData(String code, long expiry) {
+    this.code = code;
+    this.expiry = expiry;
+  }
 
   public String getCode() {
     return code;
@@ -14,5 +19,14 @@ public class MailOtpSecretData {
 
   public void setCode(String code) {
     this.code = code;
+  }
+
+
+  public long getExpiry() {
+    return expiry;
+  }
+
+  public void setExpiry(long expiry) {
+    this.expiry = expiry;
   }
 }

@@ -9,15 +9,12 @@ public class Otp {
   private final long expiry;
   private final String email;
   private final int failedVerifications;
-  private final boolean active;
 
-  public Otp(String code, long ttlInSeconds, long expiry, String email, int failedVerifications,
-      boolean active) {
+  public Otp(String code, long ttlInSeconds, long expiry, String email, int failedVerifications) {
     this.code = code;
     this.ttlInSeconds = ttlInSeconds;
     this.expiry = expiry;
     this.email = email;
-    this.active = active;
     this.failedVerifications = failedVerifications;
   }
 
@@ -41,10 +38,6 @@ public class Otp {
     return failedVerifications;
   }
 
-  public boolean isActive() {
-    return active;
-  }
-
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -55,13 +48,13 @@ public class Otp {
     }
     Otp otp = (Otp) o;
     return ttlInSeconds == otp.ttlInSeconds && expiry == otp.expiry
-        && failedVerifications == otp.failedVerifications && active == otp.active
-        && Objects.equals(code, otp.code) && Objects.equals(email, otp.email);
+        && failedVerifications == otp.failedVerifications && Objects.equals(code, otp.code)
+        && Objects.equals(email, otp.email);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(code, ttlInSeconds, expiry, email, failedVerifications, active);
+    return Objects.hash(code, ttlInSeconds, expiry, email, failedVerifications);
   }
 
   @Override
@@ -72,7 +65,6 @@ public class Otp {
         ", expiry=" + expiry +
         ", email='" + email + '\'' +
         ", failedVerifications=" + failedVerifications +
-        ", active=" + active +
         '}';
   }
 }
