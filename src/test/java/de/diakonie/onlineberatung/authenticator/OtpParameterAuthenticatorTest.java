@@ -32,6 +32,7 @@ public class OtpParameterAuthenticatorTest {
   private UserCredentialManager credentialManager;
   private HttpRequest httpRequest;
   private MultivaluedHashMap<String, String> decodedFormParams;
+  private KeycloakSession session;
 
   @Before
   public void setUp() {
@@ -41,7 +42,7 @@ public class OtpParameterAuthenticatorTest {
     when(authFlow.getRealm()).thenReturn(realm);
     user = mock(UserModel.class);
     when(authFlow.getUser()).thenReturn(user);
-    var session = mock(KeycloakSession.class);
+    session = mock(KeycloakSession.class);
     when(authFlow.getSession()).thenReturn(session);
     credentialManager = mock(UserCredentialManager.class);
     when(session.userCredentialManager()).thenReturn(credentialManager);
@@ -55,14 +56,14 @@ public class OtpParameterAuthenticatorTest {
   public void isConfigured_should_be_true_if_otp_auth_is_configured_for_user() {
     when(credentialManager.isConfiguredFor(realm, user, OTPCredentialModel.TYPE)).thenReturn(true);
 
-    var configured = authenticator.isConfigured(authFlow);
+    var configured = authenticator.configuredFor(session, realm, user);
 
     assertThat(configured).isTrue();
   }
 
   @Test
   public void isConfigured_should_be_false_if_otp_auth_is_not_configured_for_user() {
-    var configured = authenticator.isConfigured(authFlow);
+    var configured = authenticator.configuredFor(session, realm, user);
 
     assertThat(configured).isFalse();
   }

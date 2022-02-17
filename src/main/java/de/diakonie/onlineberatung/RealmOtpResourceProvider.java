@@ -1,15 +1,20 @@
 package de.diakonie.onlineberatung;
 
-import static java.lang.Boolean.parseBoolean;
+import static de.diakonie.onlineberatung.credential.MailOtpCredentialModel.INVALIDATED;
 import static java.util.Objects.isNull;
+import static java.util.Objects.nonNull;
 
 import de.diakonie.onlineberatung.authenticator.SessionAuthenticator;
+import de.diakonie.onlineberatung.credential.CredentialContext;
+import de.diakonie.onlineberatung.credential.CredentialService;
+import de.diakonie.onlineberatung.credential.MailOtpCredentialModel;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.Error;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpInfoDTO;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpSetupDTO;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpType;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.Success;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.SuccessWithEmail;
+import de.diakonie.onlineberatung.otp.Otp;
 import de.diakonie.onlineberatung.otp.OtpMailSender;
 import de.diakonie.onlineberatung.otp.OtpService;
 import javax.ws.rs.Consumes;
@@ -39,10 +44,11 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
   public static final int KEY_LENGTH = 32;
   public static final String ROLE_REQUIRED = "technical";
   public static final String OTP_CONFIG_ALIAS = "email-otp-config";
-  public static final String OTP_MAIL_AUTHENTICATION_ATTRIBUTE = "otp-mail-authentication";
 
   private static final Logger logger = Logger.getLogger(RealmOtpResourceProvider.class);
   private static final String MISSING_PARAMETER_ERROR = "invalid_parameter";
+  private static final String ALREADY_ACTIVE = "mail otp credentials are already configured";
+  private static final String MISSING_CREDENTIAL_CONFIG = "no mail otp credentials configured";
   private static final String MISSING_USERNAME_ERROR_DESCRIPTION = "username not found";
   private static final String MISSING_EMAIL_ADDRESS_ERROR_DESCRIPTION = "email address of user not available";
   private final static String FAILED_TO_SENT = "failed to send otp verification email";
@@ -51,13 +57,16 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
   private final SessionAuthenticator sessionAuthenticator;
   private final OtpService otpService;
   private final OtpMailSender mailSender;
+  private final CredentialService mailCredentialService;
 
   public RealmOtpResourceProvider(KeycloakSession session, OtpService otpService,
-      OtpMailSender mailSender, SessionAuthenticator sessionAuthenticator) {
+      OtpMailSender mailSender, SessionAuthenticator sessionAuthenticator,
+      CredentialService mailCredentialService) {
     this.session = session;
     this.otpService = otpService;
     this.mailSender = mailSender;
     this.sessionAuthenticator = sessionAuthenticator;
+    this.mailCredentialService = mailCredentialService;
   }
 
   @GET
@@ -84,8 +93,9 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
       return Response.ok(otpInfoDTO).build();
     }
 
-    var isMail2FaConfigured = parseBoolean(
-        user.getFirstAttribute(OTP_MAIL_AUTHENTICATION_ATTRIBUTE));
+    var credential = mailCredentialService.getCredential(
+        new CredentialContext(session, realm, user));
+    var isMail2FaConfigured = nonNull(credential) && credential.isActive();
     if (isMail2FaConfigured) {
       otpInfoDTO.setOtpSetup(true);
       otpInfoDTO.setOtpType(OtpType.EMAIL);
@@ -135,7 +145,7 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
           .entity(new Success().info("OTP credential created")).build();
     }
 
-    return Response.ok(new Success().info("OTP credential is already configured for this User"))
+    return Response.ok(new Success().info("OTP credential is already configured for this user"))
         .build();
   }
 
@@ -179,17 +189,9 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
           .errorDescription(MISSING_EMAIL_ADDRESS_ERROR_DESCRIPTION)).build();
     }
 
-    try {
-      var otp = otpService.createOtp(username, emailAddress);
-      mailSender.sendOtpCode(otp, session, user, emailAddress);
-    } catch (Exception e) {
-      logger.error("failed to send verification mail", e);
-      otpService.invalidate(username);
-      return Response.status(Status.INTERNAL_SERVER_ERROR).entity(new Error().error(FAILED_TO_SENT))
-          .build();
-    }
-    return Response.status(Status.OK).entity(new Success().info("OTP mail sent"))
-        .build();
+    var context = new CredentialContext(session, realm, user);
+    var otp = otpService.createOtp(emailAddress);
+    return verifyAndSendMail(context, otp);
   }
 
   @POST
@@ -208,15 +210,23 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
           .errorDescription(MISSING_USERNAME_ERROR_DESCRIPTION)).build();
     }
 
-    return verifyInitialMailOtp(mailSetup.getInitialCode(), username, user);
+    var context = new CredentialContext(session, realm, user);
+    try {
+      return verifyMailSetup(mailSetup.getInitialCode(), context);
+    } catch (Exception e) {
+      logger.error("failed to verify mail setup", e);
+      return Response.status(Status.INTERNAL_SERVER_ERROR)
+          .entity(new Error().error("internal_error").errorDescription("failed to validate code"))
+          .build();
+    }
   }
 
   private void deleteAllOtpCredentials(RealmModel realm, UserModel user) {
-    user.setSingleAttribute(OTP_MAIL_AUTHENTICATION_ATTRIBUTE, "false");
     this.session.userCredentialManager().
-        getStoredCredentialsByTypeStream(realm, user, OTPCredentialModel.TYPE).
-        forEach(credentialModel -> CredentialHelper
+        getStoredCredentialsByTypeStream(realm, user, OTPCredentialModel.TYPE)
+        .forEach(credentialModel -> CredentialHelper
             .deleteOTPCredential(this.session, realm, user, credentialModel.getId()));
+    this.mailCredentialService.deleteCredential(new CredentialContext(session, realm, user));
   }
 
   private void verifyAuthentication() {
@@ -233,9 +243,48 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
     // Do nothing because it is not needed
   }
 
-  private Response verifyInitialMailOtp(String initialCode, String username, UserModel user) {
-    var otp = otpService.get(username);
-    var validationResult = otpService.validate(initialCode, username);
+  private Response verifyAndSendMail(CredentialContext context, Otp otp) {
+    MailOtpCredentialModel credentialModel = null;
+    try {
+      credentialModel = mailCredentialService.getCredential(context);
+      if (isNull(credentialModel)) {
+        credentialModel = mailCredentialService.createCredential(otp, context);
+      } else if (credentialModel.isActive()) {
+        return Response.status(Status.CONFLICT).entity(new Error().error(ALREADY_ACTIVE))
+            .build();
+      } else {
+        mailCredentialService.update(credentialModel.updateFrom(otp), context);
+      }
+      mailSender.sendOtpCode(otp, context.getSession(), context.getUser(), otp.getEmail());
+    } catch (Exception e) {
+      if (nonNull(credentialModel)) {
+        mailCredentialService.invalidate(credentialModel, context);
+      }
+      logger.error("failed to send verification mail", e);
+      return Response.status(Status.INTERNAL_SERVER_ERROR)
+          .entity(new Error().error(FAILED_TO_SENT))
+          .build();
+    }
+
+    return Response.status(Status.OK).entity(new Success().info("OTP mail sent"))
+        .build();
+  }
+
+  private Response verifyMailSetup(String initialCode, CredentialContext context) {
+    var credentialModel = mailCredentialService.getCredential(context);
+    if (isNull(credentialModel)) {
+      return Response.status(Status.BAD_REQUEST).entity(
+              new Error().error("invalid_grant").errorDescription(MISSING_CREDENTIAL_CONFIG))
+          .build();
+    }
+    if (credentialModel.isActive()) {
+      return Response.ok(
+          new Success().info("Mail OTP credential is already configured for this User")).build();
+    }
+
+    var otp = credentialModel.getOtp();
+    var validationResult = otpService.validate(initialCode, otp);
+
     switch (validationResult) {
       case NOT_PRESENT:
         return Response.status(Status.UNAUTHORIZED).entity(
@@ -244,6 +293,8 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
         return Response.status(Status.UNAUTHORIZED).entity(
             new Error().error("invalid_grant").errorDescription("Code expired")).build();
       case INVALID:
+        credentialModel.updateFailedVerifications(otp.getFailedVerifications() + 1);
+        mailCredentialService.update(credentialModel, context);
         return Response.status(Status.UNAUTHORIZED).entity(
             new Error().error("invalid_grant").errorDescription("Invalid code")).build();
       case TOO_MANY_FAILED_ATTEMPTS:
@@ -251,13 +302,15 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
             new Error().error("invalid_grant")
                 .errorDescription("Maximal number of failed attempts reached")).build();
       case VALID:
-        user.setSingleAttribute(OTP_MAIL_AUTHENTICATION_ATTRIBUTE, "true");
+        credentialModel.setActive();
+        credentialModel.updateCode(INVALIDATED);
+        mailCredentialService.update(credentialModel, context);
         return Response.status(Status.CREATED)
             .entity(new SuccessWithEmail().email(otp.getEmail()).info("OTP setup created"))
             .build();
       default:
-        return Response.status(Status.INTERNAL_SERVER_ERROR)
-            .entity(new Error().error("invalid_grant").errorDescription("failed to validate code"))
+        return Response.status(Status.INTERNAL_SERVER_ERROR).entity(
+                new Error().error("invalid_grant").errorDescription("failed to validate code"))
             .build();
     }
   }

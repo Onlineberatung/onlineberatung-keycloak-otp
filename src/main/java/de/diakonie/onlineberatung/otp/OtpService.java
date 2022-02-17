@@ -2,11 +2,8 @@ package de.diakonie.onlineberatung.otp;
 
 public interface OtpService {
 
-  ValidationResult validate(String currentCode, String username);
+  ValidationResult validate(String currentCode, Otp otp);
 
-  void invalidate(String username);
+  Otp createOtp(String emailAddress);
 
-  Otp createOtp(String username, String emailAddress);
-
-  Otp get(String username);
 }

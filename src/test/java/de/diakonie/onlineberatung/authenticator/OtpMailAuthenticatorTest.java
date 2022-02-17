@@ -1,6 +1,9 @@
 package de.diakonie.onlineberatung.authenticator;
 
+import static de.diakonie.onlineberatung.credential.MailOtpCredentialModel.createOtpModel;
 import static de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpType.EMAIL;
+import static java.time.Clock.systemDefaultZone;
+import static java.util.Collections.singletonList;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -9,11 +12,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import de.diakonie.onlineberatung.RealmOtpResourceProvider;
+import de.diakonie.onlineberatung.credential.CredentialContext;
+import de.diakonie.onlineberatung.credential.CredentialService;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.Challenge;
 import de.diakonie.onlineberatung.otp.Otp;
 import de.diakonie.onlineberatung.otp.OtpMailSender;
 import de.diakonie.onlineberatung.otp.OtpService;
+import de.diakonie.onlineberatung.otp.ValidationResult;
 import java.io.IOException;
 import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.Response;
@@ -22,6 +27,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
+import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.mockito.ArgumentCaptor;
@@ -31,6 +37,12 @@ public class OtpMailAuthenticatorTest {
   private AuthenticationFlowContext authFlow;
   private OtpMailSender mailSender;
   private OtpService otpService;
+  private KeycloakSession session;
+  private RealmModel realm;
+  private CredentialService credentialService;
+  private CredentialContext credentialContext;
+  private UserModel user;
+  private MultivaluedHashMap<String, String> decodedFormParams;
   private OtpMailAuthenticator authenticator;
 
   @Before
@@ -38,47 +50,58 @@ public class OtpMailAuthenticatorTest {
     authFlow = mock(AuthenticationFlowContext.class);
     var httpRequest = mock(HttpRequest.class);
     when(authFlow.getHttpRequest()).thenReturn(httpRequest);
-    var decodedFormParams = new MultivaluedHashMap<String, String>();
+    decodedFormParams = new MultivaluedHashMap<>();
     when(httpRequest.getDecodedFormParameters()).thenReturn(decodedFormParams);
     mailSender = mock(OtpMailSender.class);
     otpService = mock(OtpService.class);
-    var realm = mock(RealmModel.class);
+    realm = mock(RealmModel.class);
     when(authFlow.getRealm()).thenReturn(realm);
-
-    authenticator = new OtpMailAuthenticator(otpService, mailSender);
+    session = mock(KeycloakSession.class);
+    when(authFlow.getSession()).thenReturn(session);
+    user = mock(UserModel.class);
+    when(authFlow.getUser()).thenReturn(user);
+    credentialService = mock(CredentialService.class);
+    credentialContext = new CredentialContext(session, realm, user);
+    authenticator = new OtpMailAuthenticator(otpService, credentialService, mailSender);
   }
 
   @Test
-  public void isConfigured_should_be_true_if_mail_attribute_is_set() {
-    var user = mock(UserModel.class);
-    when(user.getFirstAttribute(
-        RealmOtpResourceProvider.OTP_MAIL_AUTHENTICATION_ATTRIBUTE)).thenReturn("true");
-    when(authFlow.getUser()).thenReturn(user);
+  public void isConfigured_should_be_true_if_credential_is_active() {
+    var otp = new Otp("1234", 300, 1000L, "someemail@test.de", 0);
+    var credentialModel = createOtpModel(otp, systemDefaultZone(), true);
+    when(credentialService.getCredential(credentialContext)).thenReturn(credentialModel);
 
-    var configured = authenticator.isConfigured(authFlow);
+    var configured = authenticator.configuredFor(session, realm, user);
 
     assertThat(configured).isTrue();
   }
 
   @Test
-  public void isConfigured_should_be_false_if_mail_attribute_is_not_set() {
-    var user = mock(UserModel.class);
-    when(authFlow.getUser()).thenReturn(user);
+  public void isConfigured_should_be_false_if_credential_is_inactive() {
+    var otp = new Otp("1234", 300, 1000L, "someemail@test.de", 0);
+    var credentialModel = createOtpModel(otp, systemDefaultZone(), false);
+    when(credentialService.getCredential(credentialContext)).thenReturn(credentialModel);
 
-    var configured = authenticator.isConfigured(authFlow);
+    var configured = authenticator.configuredFor(session, realm, user);
+
+    assertThat(configured).isFalse();
+  }
+
+  @Test
+  public void isConfigured_should_be_false_if_credentials_are_not_set() {
+    var configured = authenticator.configuredFor(session, realm, user);
 
     assertThat(configured).isFalse();
   }
 
   @Test
   public void authenticate_should_send_mail_if_otp_param_is_missing() throws Exception {
-    var user = mock(UserModel.class);
     when(user.getUsername()).thenReturn("Karen");
     when(user.getEmail()).thenReturn("mymail@test.de");
-    when(authFlow.getUser()).thenReturn(user);
-    var expectedOtp = new Otp("123", 200L, 123456L, "mymail@test.de");
-
-    when(otpService.createOtp("Karen", "mymail@test.de")).thenReturn(expectedOtp);
+    var expectedOtp = new Otp("123", 200L, 123456L, "mymail@test.de", 0);
+    var credentialModel = createOtpModel(expectedOtp, systemDefaultZone());
+    when(credentialService.getCredential(credentialContext)).thenReturn(credentialModel);
+    when(otpService.createOtp("mymail@test.de")).thenReturn(expectedOtp);
 
     authenticator.authenticate(authFlow);
 
@@ -93,12 +116,12 @@ public class OtpMailAuthenticatorTest {
 
   @Test
   public void authenticate_should_invalidate_otp_if_mail_sending_fails() throws Exception {
-    var user = mock(UserModel.class);
     when(user.getUsername()).thenReturn("Karen");
     when(user.getEmail()).thenReturn("mymail@test.de");
-    when(authFlow.getUser()).thenReturn(user);
-    var expectedOtp = new Otp("123", 200L, 123456L, "mymail@test.de");
-    when(otpService.createOtp("Karen", "mymail@test.de")).thenReturn(expectedOtp);
+    var expectedOtp = new Otp("123", 200L, 123456L, "mymail@test.de", 0);
+    when(otpService.createOtp("mymail@test.de")).thenReturn(expectedOtp);
+    var credentialModel = createOtpModel(expectedOtp, systemDefaultZone());
+    when(credentialService.getCredential(credentialContext)).thenReturn(credentialModel);
     doThrow(IOException.class).when(mailSender).sendOtpCode(any(), any(), any(), any());
 
     authenticator.authenticate(authFlow);
@@ -107,6 +130,22 @@ public class OtpMailAuthenticatorTest {
     verify(authFlow).failure(eq(AuthenticationFlowError.INTERNAL_ERROR),
         responseCaptor.capture());
     assertThat(responseCaptor.getValue().getStatus()).isEqualTo(500);
-    verify(otpService).invalidate("Karen");
+    verify(credentialService).invalidate(credentialModel, credentialContext);
+  }
+
+  @Test
+  public void authenticate_should_increase_number_of_failed_attempts_if_otp_is_invalid() {
+    when(user.getUsername()).thenReturn("Karen");
+    when(user.getEmail()).thenReturn("mymail@test.de");
+    var storedOtp = new Otp("123", 200L, 123456L, "mymail@test.de", 0);
+    var credentialModel = createOtpModel(storedOtp, systemDefaultZone());
+    when(credentialService.getCredential(credentialContext)).thenReturn(credentialModel);
+    decodedFormParams.put("otp", singletonList("86767"));
+    when(otpService.validate("86767", storedOtp)).thenReturn(ValidationResult.INVALID);
+
+    authenticator.authenticate(authFlow);
+
+    assertThat(credentialModel.getOtp().getFailedVerifications()).isEqualTo(1);
+    verify(credentialService).update(credentialModel, credentialContext);
   }
 }

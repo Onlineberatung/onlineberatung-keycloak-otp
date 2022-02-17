@@ -8,6 +8,7 @@ import static de.diakonie.onlineberatung.otp.ValidationResult.VALID;
 import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
 
+import de.diakonie.onlineberatung.credential.MailOtpCredentialModel;
 import java.time.Clock;
 import javax.annotation.Nullable;
 import org.jboss.logging.Logger;
@@ -21,16 +22,14 @@ public class MemoryOtpService implements OtpService {
   private static final int MAX_FAILED_VALIDATIONS = 3;
   private static final long SECOND_IN_MILLIS = 1000L;
 
-  private final OtpStore otpStore;
   private final OtpGenerator generator;
   private final Clock clock;
 
   private int codeLength = DEFAULT_CODE_LENGTH;
   private int ttlInSeconds = DEFAULT_TTL_IN_SECONDS;
 
-  public MemoryOtpService(OtpStore otpStore, OtpGenerator generator, Clock clock,
+  public MemoryOtpService(OtpGenerator generator, Clock clock,
       @Nullable AuthenticatorConfigModel authConfig) {
-    this.otpStore = otpStore;
     this.generator = generator;
     this.clock = clock;
     if (nonNull(authConfig)) {
@@ -47,30 +46,20 @@ public class MemoryOtpService implements OtpService {
   }
 
   @Override
-  public Otp createOtp(String username, String emailAddress) {
+  public Otp createOtp(String emailAddress) {
     var code = generator.generate(codeLength);
     var expiry = clock.millis() + (ttlInSeconds * SECOND_IN_MILLIS);
-    var otp = new Otp(code, ttlInSeconds, expiry, emailAddress);
-    otpStore.put(username.toLowerCase(), otp);
-    return otp;
+    return new Otp(code, ttlInSeconds, expiry, emailAddress, 0);
   }
 
   @Override
-  public Otp get(String username) {
-    return otpStore.get(username.toLowerCase());
-  }
-
-  @Override
-  public ValidationResult validate(String currentCode, String username) {
+  public ValidationResult validate(String currentCode, Otp storedOtp) {
     if (isNull(currentCode) || currentCode.isBlank()) {
       return INVALID;
     }
-    if (isNull(username) || username.isBlank()) {
-      return NOT_PRESENT;
-    }
 
-    var storedOtp = get(username);
-    if (isNull(storedOtp) || isNull(storedOtp.getCode())) {
+    if (isNull(storedOtp) || isNull(storedOtp.getCode())
+        || MailOtpCredentialModel.INVALIDATED.equals(storedOtp.getCode())) {
       return NOT_PRESENT;
     }
 
@@ -79,20 +68,14 @@ public class MemoryOtpService implements OtpService {
     }
 
     if (!storedOtp.getCode().equals(currentCode)) {
-      if (storedOtp.incAndGetFailedVerifications() > MAX_FAILED_VALIDATIONS) {
-        invalidate(username);
+      var failedVerifications = storedOtp.getFailedVerifications() + 1;
+      if (failedVerifications > MAX_FAILED_VALIDATIONS) {
         return TOO_MANY_FAILED_ATTEMPTS;
       }
       return INVALID;
     }
 
-    invalidate(username);
     return VALID;
-  }
-
-  @Override
-  public void invalidate(String username) {
-    otpStore.remove(username.toLowerCase());
   }
 
   private boolean isExpired(long expiry) {
