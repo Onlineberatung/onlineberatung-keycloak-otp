@@ -70,7 +70,7 @@ public class RealmOtpResourceProviderTest {
     var response = resourceProvider.sendVerificationMail("heinrich", mailSetup);
 
     assertThat(response.getStatus()).isEqualTo(200);
-    verify(mailSender).sendOtpCode(otp, session, user, "hk@test.de");
+    verify(mailSender).sendOtpCode(otp, session, user);
   }
 
   @Test
@@ -89,7 +89,7 @@ public class RealmOtpResourceProviderTest {
 
     assertThat(response.getStatus()).isEqualTo(200);
     var expectedCredentials = notYetActivatedCredentials.updateFrom(newOtp);
-    verify(mailSender).sendOtpCode(newOtp, session, user, "hk@test.de");
+    verify(mailSender).sendOtpCode(newOtp, session, user);
     verify(credentialService).update(expectedCredentials, credentialContext);
   }
 
@@ -118,7 +118,7 @@ public class RealmOtpResourceProviderTest {
     mailSetup.setEmail("hk@test.de");
     var otp = new Otp("123", 450L, 1234567L, "hk@test.de", 0);
     when(otpService.createOtp("hk@test.de")).thenReturn(otp);
-    doThrow(MailSendingException.class).when(mailSender).sendOtpCode(any(), any(), any(), any());
+    doThrow(MailSendingException.class).when(mailSender).sendOtpCode(any(), any(), any());
     var credentialModel = MailOtpCredentialModel.createOtpModel(otp, Clock.systemDefaultZone());
     when(credentialService.createCredential(otp, credentialContext)).thenReturn(credentialModel);
 

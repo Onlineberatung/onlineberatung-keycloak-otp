@@ -102,6 +102,7 @@ public class OtpMailAuthenticatorParameterizedTest {
       assertThat(responseCaptor.getValue().getStatus()).isEqualTo(httpStatusExpected);
     } else {
       verify(authFlow).success();
+      verify(credentialService).invalidate(credentialModel, credentialContext);
     }
   }
 }

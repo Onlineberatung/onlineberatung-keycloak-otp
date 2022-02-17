@@ -6,7 +6,6 @@ import org.keycloak.models.UserModel;
 
 public interface OtpMailSender {
 
-  void sendOtpCode(Otp otp, KeycloakSession session, UserModel user, String emailAddress)
-      throws MailSendingException;
+  void sendOtpCode(Otp otp, KeycloakSession session, UserModel user) throws MailSendingException;
 
 }
