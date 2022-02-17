@@ -264,8 +264,7 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
           .build();
     }
 
-    return Response.status(Status.OK).entity(new Success().info("OTP mail sent"))
-        .build();
+    return Response.status(Status.OK).entity(new Success().info("OTP mail sent")).build();
   }
 
   private Response verifyMailSetup(String initialCode, CredentialContext context) {
@@ -275,14 +274,15 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
               new Error().error(INVALID_GRANT_ERROR).errorDescription(MISSING_CREDENTIAL_CONFIG))
           .build();
     }
-    if (credentialModel.isActive()) {
-      return Response.ok(
-          new Success().info("Mail OTP credential is already configured for this User")).build();
-    }
 
     var otp = credentialModel.getOtp();
-    var validationResult = otpService.validate(initialCode, otp);
+    if (credentialModel.isActive()) {
+      return Response.ok(
+          new SuccessWithEmail().info("Mail OTP credential is already configured for this User")
+              .email(otp.getEmail())).build();
+    }
 
+    var validationResult = otpService.validate(initialCode, otp);
     switch (validationResult) {
       case NOT_PRESENT:
         return Response.status(Status.UNAUTHORIZED).entity(
