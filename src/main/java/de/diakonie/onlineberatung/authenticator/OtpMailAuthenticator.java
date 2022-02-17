@@ -31,6 +31,8 @@ public class OtpMailAuthenticator extends AbstractDirectGrantAuthenticator {
   public static String AUTHENTICATOR_ID = "email-authenticator";
 
   private static final Logger logger = Logger.getLogger(OtpMailAuthenticator.class);
+  private static final String INVALID_GRANT_ERROR = "invalid_grant";
+  private static final String INTERNAL_ERROR = "internal_error";
 
   private final OtpService otpService;
   private final CredentialService credentialService;
@@ -77,6 +79,7 @@ public class OtpMailAuthenticator extends AbstractDirectGrantAuthenticator {
 
   private void sendOtpMail(MailOtpCredentialModel credentialModel, CredentialContext credContext,
       AuthenticationFlowContext context) {
+
     var emailAddress = credContext.getUser().getEmail();
     var otp = otpService.createOtp(emailAddress);
     credentialService.update(credentialModel.updateFrom(otp), credContext);
@@ -93,36 +96,37 @@ public class OtpMailAuthenticator extends AbstractDirectGrantAuthenticator {
       logger.error("failed to send otp mail", e);
       context.failure(AuthenticationFlowError.INTERNAL_ERROR,
           errorResponse(Status.INTERNAL_SERVER_ERROR.getStatusCode(),
-              "internal_error", "failed to send otp email"));
+              INTERNAL_ERROR, "failed to send otp email"));
     }
   }
 
   private void validateOtp(String otpRequest, MailOtpCredentialModel credentialModel,
       AuthenticationFlowContext context, CredentialContext credContext) {
+
     var otp = credentialModel.getOtp();
 
     switch (otpService.validate(otpRequest, otp)) {
       case NOT_PRESENT:
         context.failure(AuthenticationFlowError.INVALID_CREDENTIALS,
             errorResponse(Status.UNAUTHORIZED.getStatusCode(),
-                "invalid_grant", "No corresponding code"));
+                INVALID_GRANT_ERROR, "No corresponding code"));
         break;
       case EXPIRED:
         context.failure(AuthenticationFlowError.EXPIRED_CODE,
             errorResponse(Status.UNAUTHORIZED.getStatusCode(),
-                "invalid_grant", "Code expired"));
+                INVALID_GRANT_ERROR, "Code expired"));
         break;
       case INVALID:
         credentialModel.updateFailedVerifications(otp.getFailedVerifications() + 1);
         credentialService.update(credentialModel, credContext);
         context.failure(AuthenticationFlowError.INVALID_CREDENTIALS,
             errorResponse(Status.UNAUTHORIZED.getStatusCode(),
-                "invalid_grant", "Invalid code"));
+                INVALID_GRANT_ERROR, "Invalid code"));
         break;
       case TOO_MANY_FAILED_ATTEMPTS:
         context.failure(AuthenticationFlowError.ACCESS_DENIED,
             errorResponse(Status.TOO_MANY_REQUESTS.getStatusCode(),
-                "invalid_grant", "Maximal number of failed attempts reached"));
+                INVALID_GRANT_ERROR, "Maximal number of failed attempts reached"));
         break;
       case VALID:
         credentialService.invalidate(credentialModel, credContext);
@@ -131,7 +135,7 @@ public class OtpMailAuthenticator extends AbstractDirectGrantAuthenticator {
       default:
         context.failure(AuthenticationFlowError.INTERNAL_ERROR,
             errorResponse(Status.INTERNAL_SERVER_ERROR.getStatusCode(),
-                "internal_error", "failed to validate code"));
+                INTERNAL_ERROR, "failed to validate code"));
     }
   }
 
