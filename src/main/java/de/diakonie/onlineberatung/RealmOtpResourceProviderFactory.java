@@ -1,6 +1,6 @@
 package de.diakonie.onlineberatung;
 
-import static de.diakonie.onlineberatung.RealmOtpResourceProvider.OTP_CONFIG_ALIAS;
+import static de.diakonie.onlineberatung.authenticator.OtpMailAuthenticatorFactory.OTP_CONFIG_ALIAS;
 
 import de.diakonie.onlineberatung.authenticator.BearerTokenSessionAuthenticator;
 import de.diakonie.onlineberatung.credential.MailOtpCredentialProviderFactory;

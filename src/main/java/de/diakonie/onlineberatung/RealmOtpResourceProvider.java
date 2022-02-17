@@ -7,13 +7,13 @@ import static java.util.Objects.nonNull;
 import de.diakonie.onlineberatung.authenticator.SessionAuthenticator;
 import de.diakonie.onlineberatung.credential.CredentialContext;
 import de.diakonie.onlineberatung.credential.CredentialService;
-import de.diakonie.onlineberatung.credential.MailOtpCredentialModel;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.Error;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpInfoDTO;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpSetupDTO;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpType;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.Success;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.SuccessWithEmail;
+import de.diakonie.onlineberatung.mail.MailSendingException;
 import de.diakonie.onlineberatung.otp.Otp;
 import de.diakonie.onlineberatung.otp.OtpMailSender;
 import de.diakonie.onlineberatung.otp.OtpService;
@@ -41,12 +41,10 @@ import org.keycloak.utils.TotpUtils;
 
 public class RealmOtpResourceProvider implements RealmResourceProvider {
 
-  public static final int KEY_LENGTH = 32;
-  public static final String ROLE_REQUIRED = "technical";
-  public static final String OTP_CONFIG_ALIAS = "email-otp-config";
-
   private static final Logger logger = Logger.getLogger(RealmOtpResourceProvider.class);
+  private static final int KEY_LENGTH = 32;
   private static final String MISSING_PARAMETER_ERROR = "invalid_parameter";
+  private static final String INVALID_GRANT_ERROR = "invalid_grant";
   private static final String ALREADY_ACTIVE = "mail otp credentials are already configured";
   private static final String MISSING_CREDENTIAL_CONFIG = "no mail otp credentials configured";
   private static final String MISSING_USERNAME_ERROR_DESCRIPTION = "username not found";
@@ -134,7 +132,7 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
       if (!CredentialValidation.validOTP(dto.getInitialCode(), otpCredentialModel,
           realm.getOTPPolicy().getLookAheadWindow())) {
         return Response.status(Status.UNAUTHORIZED)
-            .entity(new Error().error("invalid_grant").errorDescription("Invalid otp code"))
+            .entity(new Error().error(INVALID_GRANT_ERROR).errorDescription("Invalid otp code"))
             .build();
       }
 
@@ -216,7 +214,8 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
     } catch (Exception e) {
       logger.error("failed to verify mail setup", e);
       return Response.status(Status.INTERNAL_SERVER_ERROR)
-          .entity(new Error().error("internal_error").errorDescription("failed to validate code"))
+          .entity(
+              new Error().error("internal_error").errorDescription("failed to verify mail setup"))
           .build();
     }
   }
@@ -244,19 +243,18 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
   }
 
   private Response verifyAndSendMail(CredentialContext context, Otp otp) {
-    MailOtpCredentialModel credentialModel = null;
+    var credentialModel = mailCredentialService.getCredential(context);
+    if (isNull(credentialModel)) {
+      credentialModel = mailCredentialService.createCredential(otp, context);
+    } else if (credentialModel.isActive()) {
+      return Response.status(Status.CONFLICT).entity(new Error().error(ALREADY_ACTIVE)).build();
+    } else {
+      mailCredentialService.update(credentialModel.updateFrom(otp), context);
+    }
+
     try {
-      credentialModel = mailCredentialService.getCredential(context);
-      if (isNull(credentialModel)) {
-        credentialModel = mailCredentialService.createCredential(otp, context);
-      } else if (credentialModel.isActive()) {
-        return Response.status(Status.CONFLICT).entity(new Error().error(ALREADY_ACTIVE))
-            .build();
-      } else {
-        mailCredentialService.update(credentialModel.updateFrom(otp), context);
-      }
       mailSender.sendOtpCode(otp, context.getSession(), context.getUser(), otp.getEmail());
-    } catch (Exception e) {
+    } catch (MailSendingException e) {
       if (nonNull(credentialModel)) {
         mailCredentialService.invalidate(credentialModel, context);
       }
@@ -274,7 +272,7 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
     var credentialModel = mailCredentialService.getCredential(context);
     if (isNull(credentialModel)) {
       return Response.status(Status.BAD_REQUEST).entity(
-              new Error().error("invalid_grant").errorDescription(MISSING_CREDENTIAL_CONFIG))
+              new Error().error(INVALID_GRANT_ERROR).errorDescription(MISSING_CREDENTIAL_CONFIG))
           .build();
     }
     if (credentialModel.isActive()) {
@@ -288,18 +286,19 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
     switch (validationResult) {
       case NOT_PRESENT:
         return Response.status(Status.UNAUTHORIZED).entity(
-            new Error().error("invalid_grant").errorDescription("No corresponding code")).build();
+                new Error().error(INVALID_GRANT_ERROR).errorDescription("No corresponding code"))
+            .build();
       case EXPIRED:
         return Response.status(Status.UNAUTHORIZED).entity(
-            new Error().error("invalid_grant").errorDescription("Code expired")).build();
+            new Error().error(INVALID_GRANT_ERROR).errorDescription("Code expired")).build();
       case INVALID:
         credentialModel.updateFailedVerifications(otp.getFailedVerifications() + 1);
         mailCredentialService.update(credentialModel, context);
         return Response.status(Status.UNAUTHORIZED).entity(
-            new Error().error("invalid_grant").errorDescription("Invalid code")).build();
+            new Error().error(INVALID_GRANT_ERROR).errorDescription("Invalid code")).build();
       case TOO_MANY_FAILED_ATTEMPTS:
         return Response.status(Status.TOO_MANY_REQUESTS).entity(
-            new Error().error("invalid_grant")
+            new Error().error(INVALID_GRANT_ERROR)
                 .errorDescription("Maximal number of failed attempts reached")).build();
       case VALID:
         credentialModel.setActive();
@@ -310,7 +309,7 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
             .build();
       default:
         return Response.status(Status.INTERNAL_SERVER_ERROR).entity(
-                new Error().error("invalid_grant").errorDescription("failed to validate code"))
+                new Error().error(INVALID_GRANT_ERROR).errorDescription("failed to validate code"))
             .build();
     }
   }

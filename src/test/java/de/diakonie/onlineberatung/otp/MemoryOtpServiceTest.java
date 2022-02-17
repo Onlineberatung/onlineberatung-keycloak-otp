@@ -88,19 +88,19 @@ public class MemoryOtpServiceTest {
 
   @Test
   public void validate_should_be_invalid_if_stored_otp_code_does_not_equal_current() {
-    var otp = new Otp("1234", 300, fixed.millis() + 1000, null, 0);
+    var invalid = new Otp("1234", 300, fixed.millis() + 1000, null, 0);
 
-    var result = memoryOtpService.validate("4711", otp);
+    var result = memoryOtpService.validate("4711", invalid);
 
     assertThat(result).isEqualTo(INVALID);
   }
 
   @Test
   public void validate_should_be_invalid_on_empty_or_null_current_code() {
-    var otp = new Otp("1234", 300, fixed.millis() + 1000, null, 0);
+    var invalid = new Otp("1234", 300, fixed.millis() + 1000, null, 0);
 
-    assertThat(memoryOtpService.validate("", otp)).isEqualTo(INVALID);
-    assertThat(memoryOtpService.validate(null, otp)).isEqualTo(INVALID);
+    assertThat(memoryOtpService.validate("", invalid)).isEqualTo(INVALID);
+    assertThat(memoryOtpService.validate(null, invalid)).isEqualTo(INVALID);
   }
 
   @Test

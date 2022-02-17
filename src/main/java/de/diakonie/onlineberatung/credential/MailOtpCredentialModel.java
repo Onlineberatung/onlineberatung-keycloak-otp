@@ -30,8 +30,7 @@ public class MailOtpCredentialModel extends CredentialModel {
       otpCredentialModel.setId(credentialModel.getId());
       return otpCredentialModel;
     } catch (IOException e) {
-      throw new RuntimeException("failed to create MailOtpCredentialModel from credential model",
-          e);
+      throw new RuntimeException("failed to create from credential model", e);
     }
   }
 
@@ -112,7 +111,7 @@ public class MailOtpCredentialModel extends CredentialModel {
       setCredentialData(writeValueAsString(credentialData));
       setSecretData(writeValueAsString(secretData));
     } catch (IOException e) {
-      throw new RuntimeException(e);
+      throw new RuntimeException("failed to update internal model", e);
     }
   }
 }

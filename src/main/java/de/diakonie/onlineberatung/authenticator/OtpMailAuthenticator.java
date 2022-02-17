@@ -9,6 +9,7 @@ import de.diakonie.onlineberatung.credential.CredentialContext;
 import de.diakonie.onlineberatung.credential.CredentialService;
 import de.diakonie.onlineberatung.credential.MailOtpCredentialModel;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.Challenge;
+import de.diakonie.onlineberatung.mail.MailSendingException;
 import de.diakonie.onlineberatung.otp.OtpMailSender;
 import de.diakonie.onlineberatung.otp.OtpService;
 import java.util.List;
@@ -76,19 +77,18 @@ public class OtpMailAuthenticator extends AbstractDirectGrantAuthenticator {
 
   private void sendOtpMail(MailOtpCredentialModel credentialModel, CredentialContext credContext,
       AuthenticationFlowContext context) {
-    var emailAddress = context.getUser().getEmail();
+    var emailAddress = credContext.getUser().getEmail();
+    var otp = otpService.createOtp(emailAddress);
+    credentialService.update(credentialModel.updateFrom(otp), credContext);
 
     try {
-      var otp = otpService.createOtp(emailAddress);
-      credentialService.update(credentialModel.updateFrom(otp), credContext);
-      mailSender.sendOtpCode(otp, context.getSession(), credContext.getUser(), emailAddress);
-
+      mailSender.sendOtpCode(otp, credContext.getSession(), credContext.getUser(), emailAddress);
       var challengeResponse = new Challenge().error("invalid_grant")
           .errorDescription("Missing totp").otpType(EMAIL);
       context.failure(AuthenticationFlowError.INVALID_CREDENTIALS,
           Response.status(Status.BAD_REQUEST).entity(challengeResponse)
               .type(MediaType.APPLICATION_JSON_TYPE).build());
-    } catch (Exception e) {
+    } catch (MailSendingException e) {
       credentialService.invalidate(credentialModel, credContext);
       logger.error("failed to send otp mail", e);
       context.failure(AuthenticationFlowError.INTERNAL_ERROR,

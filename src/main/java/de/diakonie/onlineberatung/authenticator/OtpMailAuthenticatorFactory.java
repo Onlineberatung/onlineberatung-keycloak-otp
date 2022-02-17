@@ -1,6 +1,5 @@
 package de.diakonie.onlineberatung.authenticator;
 
-import static de.diakonie.onlineberatung.RealmOtpResourceProvider.OTP_CONFIG_ALIAS;
 import static java.util.Arrays.asList;
 
 import de.diakonie.onlineberatung.credential.MailOtpCredentialProviderFactory;
@@ -19,6 +18,8 @@ import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.provider.ProviderConfigProperty;
 
 public class OtpMailAuthenticatorFactory implements AuthenticatorFactory {
+
+  public static final String OTP_CONFIG_ALIAS = "email-otp-config";
 
   @Override
   public String getId() {

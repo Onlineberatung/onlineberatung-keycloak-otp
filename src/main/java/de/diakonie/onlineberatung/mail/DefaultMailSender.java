@@ -19,28 +19,36 @@ public class DefaultMailSender implements MailSender, OtpMailSender {
 
   @Override
   public void sendOtpCode(Otp otp, KeycloakSession session, UserModel user, String emailAddress)
-      throws Exception {
-    var locale = session.getContext().resolveLocale(user);
-    var theme = session.theme().getTheme(Theme.Type.LOGIN);
-    var bodyTemplate = theme.getMessages(locale).getProperty("emailBody");
-    var ttlInMinutes = Math.floorDiv(otp.getTtlInSeconds(), MINUTE_IN_SECONDS);
-    var emailBody = String.format(bodyTemplate, otp.getCode(), ttlInMinutes);
-    var emailSubject = theme.getMessages(locale).getProperty("emailSubject");
-    var mailContext = new MailContext(emailSubject, emailBody, emailBody, session, emailAddress);
-    send(mailContext);
+      throws MailSendingException {
+    try {
+      var locale = session.getContext().resolveLocale(user);
+      var theme = session.theme().getTheme(Theme.Type.LOGIN);
+      var bodyTemplate = theme.getMessages(locale).getProperty("emailBody");
+      var ttlInMinutes = Math.floorDiv(otp.getTtlInSeconds(), MINUTE_IN_SECONDS);
+      var emailBody = String.format(bodyTemplate, otp.getCode(), ttlInMinutes);
+      var emailSubject = theme.getMessages(locale).getProperty("emailSubject");
+      var mailContext = new MailContext(emailSubject, emailBody, emailBody, session, emailAddress);
+      send(mailContext);
+    } catch (Exception e) {
+      throw new MailSendingException("failed to send otp mail", e);
+    }
   }
 
   @Override
-  public void send(MailContext mailContext) throws Exception {
-    var session = mailContext.getSession();
-    var smtpConfig = session.getContext().getRealm().getSmtpConfig();
-    var user = new MailUser();
-    user.emailAddress = mailContext.getEmailAddress();
-    var subject = mailContext.getSubject();
-    var textBody = mailContext.getTextBody();
-    var htmlBody = mailContext.getHtmlBody();
-    var emailSenderProvider = new DefaultEmailSenderProvider(session);
-    emailSenderProvider.send(smtpConfig, user, subject, textBody, htmlBody);
+  public void send(MailContext mailContext) throws MailSendingException {
+    try {
+      var session = mailContext.getSession();
+      var smtpConfig = session.getContext().getRealm().getSmtpConfig();
+      var user = new MailUser();
+      user.emailAddress = mailContext.getEmailAddress();
+      var subject = mailContext.getSubject();
+      var textBody = mailContext.getTextBody();
+      var htmlBody = mailContext.getHtmlBody();
+      var emailSenderProvider = new DefaultEmailSenderProvider(session);
+      emailSenderProvider.send(smtpConfig, user, subject, textBody, htmlBody);
+    } catch (Exception e) {
+      throw new MailSendingException("failed to send mail", e);
+    }
   }
 
   // DefaultEmailSenderProvider just needs the email of the user, yet asks for the whole model
