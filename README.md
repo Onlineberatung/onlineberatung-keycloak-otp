@@ -22,10 +22,10 @@ configuration. We cannot edit the default flows but have to create a copy of an 
 Direct Grant). Both authenticators in this jar handle Direct Grant flow only. They operate the
 following way:
 
-* The current app authenticator just checks if an otp param exist in the request. If it exists, the
+* The current app authenticator just checks if an otp param exists in the request. If it exists, the
   request is forwarded to the default keycloak otp authenticator. The default authenticator handles
-  the validation. If no otp param are present, the authenticator sends a request back to frontend
-  and the user is prompted to enter her otp.
+  the validation. If no otp param is present, the authenticator sends a request back to frontend
+  and the user is prompted to enter their otp.
 * The mail authenticator also checks for an otp param, but in addition also handles verification if
   it is present.
 
