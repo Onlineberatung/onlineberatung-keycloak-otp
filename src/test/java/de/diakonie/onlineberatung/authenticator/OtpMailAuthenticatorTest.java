@@ -15,11 +15,11 @@ import static org.mockito.Mockito.when;
 import de.diakonie.onlineberatung.credential.CredentialContext;
 import de.diakonie.onlineberatung.credential.CredentialService;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.Challenge;
+import de.diakonie.onlineberatung.mail.MailSendingException;
 import de.diakonie.onlineberatung.otp.Otp;
 import de.diakonie.onlineberatung.otp.OtpMailSender;
 import de.diakonie.onlineberatung.otp.OtpService;
 import de.diakonie.onlineberatung.otp.ValidationResult;
-import java.io.IOException;
 import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.Response;
 import org.jboss.resteasy.spi.HttpRequest;
@@ -95,7 +95,7 @@ public class OtpMailAuthenticatorTest {
   }
 
   @Test
-  public void authenticate_should_send_mail_if_otp_param_is_missing() throws Exception {
+  public void authenticate_should_send_mail_if_otp_param_is_missing() {
     when(user.getUsername()).thenReturn("Karen");
     when(user.getEmail()).thenReturn("mymail@test.de");
     var expectedOtp = new Otp("123", 200L, 123456L, "mymail@test.de", 0);
@@ -115,14 +115,14 @@ public class OtpMailAuthenticatorTest {
   }
 
   @Test
-  public void authenticate_should_invalidate_otp_if_mail_sending_fails() throws Exception {
+  public void authenticate_should_invalidate_otp_if_mail_sending_fails() {
     when(user.getUsername()).thenReturn("Karen");
     when(user.getEmail()).thenReturn("mymail@test.de");
     var expectedOtp = new Otp("123", 200L, 123456L, "mymail@test.de", 0);
     when(otpService.createOtp("mymail@test.de")).thenReturn(expectedOtp);
     var credentialModel = createOtpModel(expectedOtp, systemDefaultZone());
     when(credentialService.getCredential(credentialContext)).thenReturn(credentialModel);
-    doThrow(IOException.class).when(mailSender).sendOtpCode(any(), any(), any(), any());
+    doThrow(MailSendingException.class).when(mailSender).sendOtpCode(any(), any(), any(), any());
 
     authenticator.authenticate(authFlow);
 

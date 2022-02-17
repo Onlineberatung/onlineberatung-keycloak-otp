@@ -1,6 +1,5 @@
 package de.diakonie.onlineberatung.authenticator;
 
-import static de.diakonie.onlineberatung.RealmOtpResourceProvider.ROLE_REQUIRED;
 import static java.util.Objects.isNull;
 
 import java.util.Objects;
@@ -11,6 +10,8 @@ import org.keycloak.models.RoleModel;
 import org.keycloak.services.managers.AppAuthManager.BearerTokenAuthenticator;
 
 public class BearerTokenSessionAuthenticator implements SessionAuthenticator {
+
+  private static final String ROLE_REQUIRED = "technical";
 
   @Override
   public void authenticate(KeycloakSession session) {

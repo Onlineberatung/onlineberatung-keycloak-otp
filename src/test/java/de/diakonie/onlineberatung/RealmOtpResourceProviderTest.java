@@ -14,11 +14,11 @@ import de.diakonie.onlineberatung.credential.CredentialService;
 import de.diakonie.onlineberatung.credential.MailOtpCredentialModel;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpSetupDTO;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.SuccessWithEmail;
+import de.diakonie.onlineberatung.mail.MailSendingException;
 import de.diakonie.onlineberatung.otp.Otp;
 import de.diakonie.onlineberatung.otp.OtpMailSender;
 import de.diakonie.onlineberatung.otp.OtpService;
 import de.diakonie.onlineberatung.otp.ValidationResult;
-import java.io.IOException;
 import java.time.Clock;
 import org.junit.Before;
 import org.junit.Test;
@@ -61,7 +61,7 @@ public class RealmOtpResourceProviderTest {
   }
 
   @Test
-  public void sendVerificationMail_should_create_and_send_otp() throws Exception {
+  public void sendVerificationMail_should_create_and_send_otp() {
     var mailSetup = new OtpSetupDTO();
     mailSetup.setEmail("hk@test.de");
     var otp = new Otp("123", 450L, 1234567L, "hk@test.de", 0);
@@ -74,8 +74,7 @@ public class RealmOtpResourceProviderTest {
   }
 
   @Test
-  public void sendVerificationMail_should_update_and_send_credentials_if_mail_was_already_send_but_not_verified_yet()
-      throws Exception {
+  public void sendVerificationMail_should_update_and_send_credentials_if_mail_was_already_send_but_not_verified_yet() {
     var mailSetup = new OtpSetupDTO();
     mailSetup.setEmail("hk@test.de");
     when(userProvider.getUserByUsername(realm, "heinrich")).thenReturn(user);
@@ -114,12 +113,12 @@ public class RealmOtpResourceProviderTest {
   }
 
   @Test
-  public void sendVerificationMail_should_invalidate_otp_if_sending_fails() throws Exception {
+  public void sendVerificationMail_should_invalidate_otp_if_sending_fails() {
     var mailSetup = new OtpSetupDTO();
     mailSetup.setEmail("hk@test.de");
     var otp = new Otp("123", 450L, 1234567L, "hk@test.de", 0);
     when(otpService.createOtp("hk@test.de")).thenReturn(otp);
-    doThrow(IOException.class).when(mailSender).sendOtpCode(any(), any(), any(), any());
+    doThrow(MailSendingException.class).when(mailSender).sendOtpCode(any(), any(), any(), any());
     var credentialModel = MailOtpCredentialModel.createOtpModel(otp, Clock.systemDefaultZone());
     when(credentialService.createCredential(otp, credentialContext)).thenReturn(credentialModel);
 
