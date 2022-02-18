@@ -49,8 +49,8 @@ public class OtpMailAuthenticator extends AbstractDirectGrantAuthenticator {
   public boolean configuredFor(KeycloakSession keycloakSession, RealmModel realmModel,
       UserModel userModel) {
     var context = new CredentialContext(keycloakSession, realmModel, userModel);
-    var mailOtpCredentialModel = credentialService.getCredential(context);
-    return nonNull(mailOtpCredentialModel) && mailOtpCredentialModel.isActive();
+    var credentialModel = credentialService.getCredential(context);
+    return nonNull(credentialModel) && credentialModel.isActive();
   }
 
   @Override
@@ -81,12 +81,18 @@ public class OtpMailAuthenticator extends AbstractDirectGrantAuthenticator {
       AuthenticationFlowContext context) {
 
     var emailAddress = credContext.getUser().getEmail();
+    if (isNull(emailAddress) || emailAddress.isBlank()) {
+      logger.warn("keycloak user with id " + credContext.getUser().getId()
+          + " has no email configured. Will use address from credentials instead");
+      emailAddress = credentialModel.getOtp().getEmail();
+    }
+
     var otp = otpService.createOtp(emailAddress);
     credentialService.update(credentialModel.updateFrom(otp), credContext);
 
     try {
-      mailSender.sendOtpCode(otp, credContext.getSession(), credContext.getUser(), emailAddress);
-      var challengeResponse = new Challenge().error("invalid_grant")
+      mailSender.sendOtpCode(otp, credContext.getSession(), credContext.getUser());
+      var challengeResponse = new Challenge().error(INVALID_GRANT_ERROR)
           .errorDescription("Missing totp").otpType(EMAIL);
       context.failure(AuthenticationFlowError.INVALID_CREDENTIALS,
           Response.status(Status.BAD_REQUEST).entity(challengeResponse)

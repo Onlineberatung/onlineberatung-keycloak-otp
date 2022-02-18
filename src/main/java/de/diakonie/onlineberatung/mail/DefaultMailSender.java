@@ -18,7 +18,7 @@ public class DefaultMailSender implements MailSender, OtpMailSender {
   private static final int MINUTE_IN_SECONDS = 60;
 
   @Override
-  public void sendOtpCode(Otp otp, KeycloakSession session, UserModel user, String emailAddress)
+  public void sendOtpCode(Otp otp, KeycloakSession session, UserModel user)
       throws MailSendingException {
     try {
       var locale = session.getContext().resolveLocale(user);
@@ -27,7 +27,8 @@ public class DefaultMailSender implements MailSender, OtpMailSender {
       var ttlInMinutes = Math.floorDiv(otp.getTtlInSeconds(), MINUTE_IN_SECONDS);
       var emailBody = String.format(bodyTemplate, otp.getCode(), ttlInMinutes);
       var emailSubject = theme.getMessages(locale).getProperty("emailSubject");
-      var mailContext = new MailContext(emailSubject, emailBody, emailBody, session, emailAddress);
+      var mailContext = new MailContext(emailSubject, emailBody, emailBody, session,
+          otp.getEmail());
       send(mailContext);
     } catch (Exception e) {
       throw new MailSendingException("failed to send otp mail", e);

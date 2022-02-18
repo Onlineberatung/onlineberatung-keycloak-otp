@@ -111,7 +111,26 @@ public class OtpMailAuthenticatorTest {
     assertThat(responseCaptor.getValue().getStatus()).isEqualTo(400);
     var challenge = responseCaptor.getValue().readEntity(Challenge.class);
     assertThat(challenge.getOtpType()).isEqualTo(EMAIL);
-    verify(mailSender).sendOtpCode(eq(expectedOtp), any(), eq(user), eq("mymail@test.de"));
+    verify(mailSender).sendOtpCode(eq(expectedOtp), any(), eq(user));
+  }
+
+  @Test
+  public void authenticate_should_use_email_address_from_stored_credentials_if_user_has_none() {
+    when(user.getUsername()).thenReturn("Karen");
+    var expectedOtp = new Otp("123", 200L, 123456L, "mymail@test.de", 0);
+    var credentialModel = createOtpModel(expectedOtp, systemDefaultZone());
+    when(credentialService.getCredential(credentialContext)).thenReturn(credentialModel);
+    when(otpService.createOtp("mymail@test.de")).thenReturn(expectedOtp);
+
+    authenticator.authenticate(authFlow);
+
+    var responseCaptor = ArgumentCaptor.forClass(Response.class);
+    verify(authFlow).failure(eq(AuthenticationFlowError.INVALID_CREDENTIALS),
+        responseCaptor.capture());
+    assertThat(responseCaptor.getValue().getStatus()).isEqualTo(400);
+    var challenge = responseCaptor.getValue().readEntity(Challenge.class);
+    assertThat(challenge.getOtpType()).isEqualTo(EMAIL);
+    verify(mailSender).sendOtpCode(eq(expectedOtp), any(), eq(user));
   }
 
   @Test
@@ -122,7 +141,7 @@ public class OtpMailAuthenticatorTest {
     when(otpService.createOtp("mymail@test.de")).thenReturn(expectedOtp);
     var credentialModel = createOtpModel(expectedOtp, systemDefaultZone());
     when(credentialService.getCredential(credentialContext)).thenReturn(credentialModel);
-    doThrow(MailSendingException.class).when(mailSender).sendOtpCode(any(), any(), any(), any());
+    doThrow(MailSendingException.class).when(mailSender).sendOtpCode(any(), any(), any());
 
     authenticator.authenticate(authFlow);
 
