@@ -45,7 +45,8 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
   private static final int KEY_LENGTH = 32;
   private static final String MISSING_PARAMETER_ERROR = "invalid_parameter";
   private static final String INVALID_GRANT_ERROR = "invalid_grant";
-  private static final String ALREADY_ACTIVE = "mail otp credentials are already configured";
+  private static final String MAIL_OTP_ALREADY_ACTIVE = "mail otp credentials are already configured";
+  private static final String APP_OTP_ALREADY_ACTIVE = "app otp credentials are already configured";
   private static final String MISSING_CREDENTIAL_CONFIG = "no mail otp credentials configured";
   private static final String MISSING_USERNAME_ERROR_DESCRIPTION = "username not found";
   private static final String MISSING_EMAIL_ADDRESS_ERROR_DESCRIPTION = "email address of user not available";
@@ -83,18 +84,13 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
     }
 
     var otpInfoDTO = new OtpInfoDTO();
-    var isApp2FaConfigured = this.session.userCredentialManager()
-        .isConfiguredFor(realm, user, OTPCredentialModel.TYPE);
-    if (isApp2FaConfigured) {
+    if (isApp2FAConfigured(realm, user)) {
       otpInfoDTO.setOtpSetup(true);
       otpInfoDTO.setOtpType(OtpType.APP);
       return Response.ok(otpInfoDTO).build();
     }
 
-    var credential = mailCredentialService.getCredential(
-        new CredentialContext(session, realm, user));
-    var isMail2FaConfigured = nonNull(credential) && credential.isActive();
-    if (isMail2FaConfigured) {
+    if (isMail2FAConfigured(realm, user)) {
       otpInfoDTO.setOtpSetup(true);
       otpInfoDTO.setOtpType(OtpType.EMAIL);
       return Response.ok(otpInfoDTO).build();
@@ -122,9 +118,12 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
           .entity(new Error().error(MISSING_PARAMETER_ERROR)
               .errorDescription(MISSING_USERNAME_ERROR_DESCRIPTION)).build();
     }
+    if (isMail2FAConfigured(realm, user)) {
+      return Response.status(Status.CONFLICT).entity(new Error().error(MAIL_OTP_ALREADY_ACTIVE))
+          .build();
+    }
 
-    if (!this.session.userCredentialManager()
-        .isConfiguredFor(realm, user, OTPCredentialModel.TYPE)) {
+    if (!isApp2FAConfigured(realm, user)) {
 
       final var otpCredentialModel = OTPCredentialModel
           .createFromPolicy(realm, dto.getSecret());
@@ -180,6 +179,10 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
       return Response.status(Status.BAD_REQUEST).entity(new Error().error(MISSING_PARAMETER_ERROR)
           .errorDescription(MISSING_USERNAME_ERROR_DESCRIPTION)).build();
     }
+    if (isApp2FAConfigured(realm, user)) {
+      return Response.status(Status.CONFLICT).entity(new Error().error(APP_OTP_ALREADY_ACTIVE))
+          .build();
+    }
 
     var emailAddress = mailSetup.getEmail();
     if (isNull(emailAddress) || emailAddress.isBlank()) {
@@ -206,6 +209,10 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
     if (isNull(user)) {
       return Response.status(Status.BAD_REQUEST).entity(new Error().error(MISSING_PARAMETER_ERROR)
           .errorDescription(MISSING_USERNAME_ERROR_DESCRIPTION)).build();
+    }
+    if (isApp2FAConfigured(realm, user)) {
+      return Response.status(Status.CONFLICT).entity(new Error().error(APP_OTP_ALREADY_ACTIVE))
+          .build();
     }
 
     var context = new CredentialContext(session, realm, user);
@@ -247,7 +254,8 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
     if (isNull(credentialModel)) {
       credentialModel = mailCredentialService.createCredential(otp, context);
     } else if (credentialModel.isActive()) {
-      return Response.status(Status.CONFLICT).entity(new Error().error(ALREADY_ACTIVE)).build();
+      return Response.status(Status.CONFLICT).entity(new Error().error(MAIL_OTP_ALREADY_ACTIVE))
+          .build();
     } else {
       mailCredentialService.update(credentialModel.updateFrom(otp), context);
     }
@@ -312,5 +320,16 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
                 new Error().error(INVALID_GRANT_ERROR).errorDescription("failed to validate code"))
             .build();
     }
+  }
+
+  private boolean isMail2FAConfigured(RealmModel realm, UserModel user) {
+    var context = new CredentialContext(session, realm, user);
+    var credential = mailCredentialService.getCredential(context);
+    return nonNull(credential) && credential.isActive();
+  }
+
+  private boolean isApp2FAConfigured(RealmModel realm, UserModel user) {
+    return this.session.userCredentialManager()
+        .isConfiguredFor(realm, user, OTPCredentialModel.TYPE);
   }
 }

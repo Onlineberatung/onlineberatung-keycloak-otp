@@ -25,8 +25,10 @@ import org.junit.Test;
 import org.keycloak.models.KeycloakContext;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
+import org.keycloak.models.UserCredentialManager;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.UserProvider;
+import org.keycloak.models.credential.OTPCredentialModel;
 
 public class RealmOtpResourceProviderTest {
 
@@ -39,6 +41,7 @@ public class RealmOtpResourceProviderTest {
   private RealmModel realm;
   private CredentialService credentialService;
   private CredentialContext credentialContext;
+  private UserCredentialManager userCredentialManager;
 
   @Before
   public void setUp() {
@@ -56,6 +59,9 @@ public class RealmOtpResourceProviderTest {
     user = mock(UserModel.class);
     credentialContext = new CredentialContext(session, realm, user);
     when(userProvider.getUserByUsername(realm, "heinrich")).thenReturn(user);
+    userCredentialManager = mock(UserCredentialManager.class);
+    when(session.userCredentialManager()).thenReturn(userCredentialManager);
+    when(userCredentialManager.isConfiguredFor(any(), any(), any())).thenReturn(false);
     resourceProvider = new RealmOtpResourceProvider(session, otpService, mailSender,
         sessionAuthenticator, credentialService);
   }
@@ -146,6 +152,18 @@ public class RealmOtpResourceProviderTest {
   }
 
   @Test
+  public void sendVerification_should_be_conflict_if_2fa_via_app_is_already_configured() {
+    var mailSetup = new OtpSetupDTO();
+    when(userProvider.getUserByUsername(realm, "heinrich")).thenReturn(user);
+    when(userCredentialManager.isConfiguredFor(realm, user, OTPCredentialModel.TYPE)).thenReturn(
+        true);
+
+    var response = resourceProvider.sendVerificationMail("heinrich", mailSetup);
+
+    assertThat(response.getStatus()).isEqualTo(409);
+  }
+
+  @Test
   public void setupOtpMail_should_be_bad_request_if_user_not_found() {
     when(userProvider.getUserByUsername(realm, "heinrich")).thenReturn(null);
     var mailSetup = new OtpSetupDTO();
@@ -202,5 +220,17 @@ public class RealmOtpResourceProviderTest {
     var response = resourceProvider.setupOtpMail("heinrich", mailSetup);
 
     assertThat(response.getStatus()).isEqualTo(200);
+  }
+
+  @Test
+  public void setupOtpMail_should_be_conflict_if_2fa_via_app_is_already_configured() {
+    var mailSetup = new OtpSetupDTO();
+    when(userProvider.getUserByUsername(realm, "heinrich")).thenReturn(user);
+    when(userCredentialManager.isConfiguredFor(realm, user, OTPCredentialModel.TYPE)).thenReturn(
+        true);
+
+    var response = resourceProvider.setupOtpMail("heinrich", mailSetup);
+
+    assertThat(response.getStatus()).isEqualTo(409);
   }
 }
