@@ -13,7 +13,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import de.diakonie.onlineberatung.credential.CredentialContext;
-import de.diakonie.onlineberatung.credential.CredentialService;
+import de.diakonie.onlineberatung.credential.MailOtpCredentialService;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.Challenge;
 import de.diakonie.onlineberatung.mail.MailSendingException;
 import de.diakonie.onlineberatung.otp.Otp;
@@ -39,7 +39,7 @@ public class OtpMailAuthenticatorTest {
   private OtpService otpService;
   private KeycloakSession session;
   private RealmModel realm;
-  private CredentialService credentialService;
+  private MailOtpCredentialService credentialService;
   private CredentialContext credentialContext;
   private UserModel user;
   private MultivaluedHashMap<String, String> decodedFormParams;
@@ -60,7 +60,7 @@ public class OtpMailAuthenticatorTest {
     when(authFlow.getSession()).thenReturn(session);
     user = mock(UserModel.class);
     when(authFlow.getUser()).thenReturn(user);
-    credentialService = mock(CredentialService.class);
+    credentialService = mock(MailOtpCredentialService.class);
     credentialContext = new CredentialContext(session, realm, user);
     authenticator = new OtpMailAuthenticator(otpService, credentialService, mailSender);
   }

@@ -1,6 +1,8 @@
 package de.diakonie.onlineberatung;
 
 import static de.diakonie.onlineberatung.credential.MailOtpCredentialModel.INVALIDATED;
+import static de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpType.APP;
+import static de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpType.EMAIL;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -9,9 +11,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import de.diakonie.onlineberatung.authenticator.SessionAuthenticator;
+import de.diakonie.onlineberatung.credential.AppOtpCredentialService;
 import de.diakonie.onlineberatung.credential.CredentialContext;
-import de.diakonie.onlineberatung.credential.CredentialService;
 import de.diakonie.onlineberatung.credential.MailOtpCredentialModel;
+import de.diakonie.onlineberatung.credential.MailOtpCredentialService;
+import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpInfoDTO;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpSetupDTO;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.SuccessWithEmail;
 import de.diakonie.onlineberatung.mail.MailSendingException;
@@ -25,7 +29,6 @@ import org.junit.Test;
 import org.keycloak.models.KeycloakContext;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
-import org.keycloak.models.UserCredentialManager;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.UserProvider;
 import org.keycloak.models.credential.OTPCredentialModel;
@@ -39,15 +42,15 @@ public class RealmOtpResourceProviderTest {
   private UserModel user;
   private UserProvider userProvider;
   private RealmModel realm;
-  private CredentialService credentialService;
+  private MailOtpCredentialService mailCredentialService;
   private CredentialContext credentialContext;
-  private UserCredentialManager userCredentialManager;
+  private AppOtpCredentialService appCredentialService;
 
   @Before
   public void setUp() {
     session = mock(KeycloakSession.class);
     otpService = mock(OtpService.class);
-    credentialService = mock(CredentialService.class);
+    mailCredentialService = mock(MailOtpCredentialService.class);
     mailSender = mock(OtpMailSender.class);
     var sessionAuthenticator = mock(SessionAuthenticator.class);
     var keycloakContext = mock(KeycloakContext.class);
@@ -59,11 +62,9 @@ public class RealmOtpResourceProviderTest {
     user = mock(UserModel.class);
     credentialContext = new CredentialContext(session, realm, user);
     when(userProvider.getUserByUsername(realm, "heinrich")).thenReturn(user);
-    userCredentialManager = mock(UserCredentialManager.class);
-    when(session.userCredentialManager()).thenReturn(userCredentialManager);
-    when(userCredentialManager.isConfiguredFor(any(), any(), any())).thenReturn(false);
+    appCredentialService = mock(AppOtpCredentialService.class);
     resourceProvider = new RealmOtpResourceProvider(session, otpService, mailSender,
-        sessionAuthenticator, credentialService);
+        sessionAuthenticator, appCredentialService, mailCredentialService);
   }
 
   @Test
@@ -87,7 +88,8 @@ public class RealmOtpResourceProviderTest {
     var oldOtp = new Otp("1223", 1L, 2L, "hk@test.de", 0);
     var notYetActivatedCredentials = MailOtpCredentialModel.createOtpModel(oldOtp,
         Clock.systemDefaultZone(), false);
-    when(credentialService.getCredential(credentialContext)).thenReturn(notYetActivatedCredentials);
+    when(mailCredentialService.getCredential(credentialContext)).thenReturn(
+        notYetActivatedCredentials);
     var newOtp = new Otp("667722", 1L, 3L, "hk@test.de", 0);
     when(otpService.createOtp("hk@test.de")).thenReturn(newOtp);
 
@@ -96,7 +98,7 @@ public class RealmOtpResourceProviderTest {
     assertThat(response.getStatus()).isEqualTo(200);
     var expectedCredentials = notYetActivatedCredentials.updateFrom(newOtp);
     verify(mailSender).sendOtpCode(newOtp, session, user);
-    verify(credentialService).update(expectedCredentials, credentialContext);
+    verify(mailCredentialService).update(expectedCredentials, credentialContext);
   }
 
   @Test
@@ -126,12 +128,13 @@ public class RealmOtpResourceProviderTest {
     when(otpService.createOtp("hk@test.de")).thenReturn(otp);
     doThrow(MailSendingException.class).when(mailSender).sendOtpCode(any(), any(), any());
     var credentialModel = MailOtpCredentialModel.createOtpModel(otp, Clock.systemDefaultZone());
-    when(credentialService.createCredential(otp, credentialContext)).thenReturn(credentialModel);
+    when(mailCredentialService.createCredential(otp, credentialContext)).thenReturn(
+        credentialModel);
 
     var response = resourceProvider.sendVerificationMail("heinrich", mailSetup);
 
     assertThat(response.getStatus()).isEqualTo(500);
-    verify(credentialService).invalidate(credentialModel, credentialContext);
+    verify(mailCredentialService).invalidate(credentialModel, credentialContext);
   }
 
   @Test
@@ -142,8 +145,8 @@ public class RealmOtpResourceProviderTest {
     var otp = new Otp("1223", 1L, 2L, "hk@test.de", 0);
     var activatedCredentials = MailOtpCredentialModel.createOtpModel(otp, Clock.systemDefaultZone(),
         true);
-    when(credentialService.getCredential(credentialContext)).thenReturn(activatedCredentials);
-    when(credentialService.createCredential(otp, credentialContext)).thenReturn(
+    when(mailCredentialService.getCredential(credentialContext)).thenReturn(activatedCredentials);
+    when(mailCredentialService.createCredential(otp, credentialContext)).thenReturn(
         activatedCredentials);
 
     var response = resourceProvider.sendVerificationMail("heinrich", mailSetup);
@@ -155,8 +158,7 @@ public class RealmOtpResourceProviderTest {
   public void sendVerification_should_be_conflict_if_2fa_via_app_is_already_configured() {
     var mailSetup = new OtpSetupDTO();
     when(userProvider.getUserByUsername(realm, "heinrich")).thenReturn(user);
-    when(userCredentialManager.isConfiguredFor(realm, user, OTPCredentialModel.TYPE)).thenReturn(
-        true);
+    when(appCredentialService.is2FAConfigured(credentialContext)).thenReturn(true);
 
     var response = resourceProvider.sendVerificationMail("heinrich", mailSetup);
 
@@ -182,8 +184,9 @@ public class RealmOtpResourceProviderTest {
     var credentialModel = MailOtpCredentialModel.createOtpModel(otp, Clock.systemDefaultZone());
     when(otpService.validate("1223", otp)).thenReturn(
         ValidationResult.VALID);
-    when(credentialService.getCredential(credentialContext)).thenReturn(credentialModel);
-    when(credentialService.createCredential(otp, credentialContext)).thenReturn(credentialModel);
+    when(mailCredentialService.getCredential(credentialContext)).thenReturn(credentialModel);
+    when(mailCredentialService.createCredential(otp, credentialContext)).thenReturn(
+        credentialModel);
 
     var response = resourceProvider.setupOtpMail("heinrich", mailSetup);
 
@@ -191,7 +194,7 @@ public class RealmOtpResourceProviderTest {
     var otpWithEmailSuccess = response.readEntity(SuccessWithEmail.class);
     assertThat(otpWithEmailSuccess.getEmail()).isEqualTo("hk@test.de");
     assertThat(credentialModel.getOtp().getCode()).isEqualTo(INVALIDATED);
-    verify(credentialService).update(credentialModel, credentialContext);
+    verify(mailCredentialService).update(credentialModel, credentialContext);
   }
 
   @Test
@@ -213,8 +216,8 @@ public class RealmOtpResourceProviderTest {
     var otp = new Otp("1223", 1L, 2L, "hk@test.de", 0);
     var activatedCredentials = MailOtpCredentialModel.createOtpModel(otp, Clock.systemDefaultZone(),
         true);
-    when(credentialService.getCredential(credentialContext)).thenReturn(activatedCredentials);
-    when(credentialService.createCredential(otp, credentialContext)).thenReturn(
+    when(mailCredentialService.getCredential(credentialContext)).thenReturn(activatedCredentials);
+    when(mailCredentialService.createCredential(otp, credentialContext)).thenReturn(
         activatedCredentials);
 
     var response = resourceProvider.setupOtpMail("heinrich", mailSetup);
@@ -226,11 +229,111 @@ public class RealmOtpResourceProviderTest {
   public void setupOtpMail_should_be_conflict_if_2fa_via_app_is_already_configured() {
     var mailSetup = new OtpSetupDTO();
     when(userProvider.getUserByUsername(realm, "heinrich")).thenReturn(user);
-    when(userCredentialManager.isConfiguredFor(realm, user, OTPCredentialModel.TYPE)).thenReturn(
-        true);
+    when(appCredentialService.is2FAConfigured(credentialContext)).thenReturn(true);
 
     var response = resourceProvider.setupOtpMail("heinrich", mailSetup);
 
     assertThat(response.getStatus()).isEqualTo(409);
+  }
+
+  @Test
+  public void getOtpSetupInfo_should_return_type_app_if_app_2fa_is_configured() {
+    when(appCredentialService.is2FAConfigured(credentialContext)).thenReturn(true);
+
+    var response = resourceProvider.getOtpSetupInfo("heinrich");
+
+    assertThat(response.getStatus()).isEqualTo(200);
+    var otpInfo = response.readEntity(OtpInfoDTO.class);
+    assertThat(otpInfo.getOtpSetup()).isTrue();
+    assertThat(otpInfo.getOtpType()).isEqualTo(APP);
+  }
+
+  @Test
+  public void getOtpSetupInfo_should_return_type_mail_if_mail_2fa_is_configured() {
+    when(mailCredentialService.is2FAConfigured(credentialContext)).thenReturn(true);
+
+    var response = resourceProvider.getOtpSetupInfo("heinrich");
+
+    assertThat(response.getStatus()).isEqualTo(200);
+    var otpInfo = response.readEntity(OtpInfoDTO.class);
+    assertThat(otpInfo.getOtpSetup()).isTrue();
+    assertThat(otpInfo.getOtpType()).isEqualTo(EMAIL);
+  }
+
+  @Test
+  public void getOtpSetupInfo_should_return_secret_and_qr_code_for_setting_up_app_otp_if_none_2fa_configured() {
+    when(appCredentialService.generateSecret()).thenReturn("someSecret");
+    when(appCredentialService.generateQRCodeBase64("someSecret", credentialContext)).thenReturn(
+        "base64EncodedQRCode");
+
+    var response = resourceProvider.getOtpSetupInfo("heinrich");
+
+    assertThat(response.getStatus()).isEqualTo(200);
+    var expectedOtpInfo = new OtpInfoDTO();
+    expectedOtpInfo.setOtpSetup(false);
+    expectedOtpInfo.setOtpSecret("someSecret");
+    expectedOtpInfo.setOtpSecretQrCode("base64EncodedQRCode");
+    var otpInfo = response.readEntity(OtpInfoDTO.class);
+    assertThat(expectedOtpInfo).isEqualTo(otpInfo);
+  }
+
+  @Test
+  public void setupOtp_should_be_conflict_if_mail_otp_is_already_configured() {
+    when(mailCredentialService.is2FAConfigured(credentialContext)).thenReturn(true);
+
+    var response = resourceProvider.setupOtp("heinrich", new OtpSetupDTO());
+
+    assertThat(response.getStatus()).isEqualTo(409);
+  }
+
+
+  @Test
+  public void setupOtp_should_be_ok_if_app_otp_is_already_configured() {
+    when(appCredentialService.is2FAConfigured(credentialContext)).thenReturn(true);
+
+    var response = resourceProvider.setupOtp("heinrich", new OtpSetupDTO());
+
+    assertThat(response.getStatus()).isEqualTo(200);
+  }
+
+  @Test
+  public void setupOtp_should_create_credentials_after_successful_validation() {
+    var otpSetup = new OtpSetupDTO();
+    otpSetup.setSecret("secretSecret");
+    otpSetup.setInitialCode("4711");
+    var credentialModel = mock(OTPCredentialModel.class);
+    when(appCredentialService.createModel("secretSecret", credentialContext)).thenReturn(
+        credentialModel);
+    when((appCredentialService.validate("4711", credentialModel, credentialContext))).thenReturn(
+        true);
+
+    var response = resourceProvider.setupOtp("heinrich", otpSetup);
+
+    assertThat(response.getStatus()).isEqualTo(201);
+  }
+
+  @Test
+  public void setupOtp_should_be_unauthorized_if_validation_fails() {
+    var otpSetup = new OtpSetupDTO();
+    otpSetup.setSecret("secretSecret");
+    otpSetup.setInitialCode("4711");
+    var credentialModel = mock(OTPCredentialModel.class);
+    when(appCredentialService.createModel("secretSecret", credentialContext)).thenReturn(
+        credentialModel);
+    when((appCredentialService.validate("4711", credentialModel, credentialContext))).thenReturn(
+        false);
+
+    var response = resourceProvider.setupOtp("heinrich", otpSetup);
+
+    assertThat(response.getStatus()).isEqualTo(401);
+  }
+
+  @Test
+  public void deleteOtp_should_delete_all_otps() {
+    var response = resourceProvider.deleteOtp("heinrich");
+
+    assertThat(response.getStatus()).isEqualTo(200);
+    verify(appCredentialService).deleteCredentials(credentialContext);
+    verify(mailCredentialService).deleteCredential(credentialContext);
   }
 }

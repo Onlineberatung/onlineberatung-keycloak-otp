@@ -9,8 +9,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import de.diakonie.onlineberatung.credential.CredentialContext;
-import de.diakonie.onlineberatung.credential.CredentialService;
 import de.diakonie.onlineberatung.credential.MailOtpCredentialModel;
+import de.diakonie.onlineberatung.credential.MailOtpCredentialService;
 import de.diakonie.onlineberatung.otp.Otp;
 import de.diakonie.onlineberatung.otp.OtpMailSender;
 import de.diakonie.onlineberatung.otp.OtpService;
@@ -36,7 +36,7 @@ import org.mockito.ArgumentCaptor;
 @RunWith(Parameterized.class)
 public class OtpMailAuthenticatorParameterizedTest {
 
-  private CredentialService credentialService;
+  private MailOtpCredentialService credentialService;
   private CredentialContext credentialContext;
 
   @Parameters(name = "Test {index}: authenticate ValidationResult{0} = http {1} flowError {2}")
@@ -81,7 +81,7 @@ public class OtpMailAuthenticatorParameterizedTest {
     when(authFlow.getUser()).thenReturn(user);
     KeycloakSession session = mock(KeycloakSession.class);
     when(authFlow.getSession()).thenReturn(session);
-    credentialService = mock(CredentialService.class);
+    credentialService = mock(MailOtpCredentialService.class);
     credentialContext = new CredentialContext(session, realm, user);
     authenticator = new OtpMailAuthenticator(otpService, credentialService,
         mock(OtpMailSender.class));

@@ -6,8 +6,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import de.diakonie.onlineberatung.authenticator.SessionAuthenticator;
-import de.diakonie.onlineberatung.credential.CredentialService;
+import de.diakonie.onlineberatung.credential.AppOtpCredentialService;
 import de.diakonie.onlineberatung.credential.MailOtpCredentialModel;
+import de.diakonie.onlineberatung.credential.MailOtpCredentialService;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpSetupDTO;
 import de.diakonie.onlineberatung.otp.Otp;
 import de.diakonie.onlineberatung.otp.OtpMailSender;
@@ -58,7 +59,7 @@ public class RealmOtpResourceProviderParameterizedTest {
   public void setUp() {
     var session = mock(KeycloakSession.class);
     otpService = mock(OtpService.class);
-    CredentialService credentialService = mock(CredentialService.class);
+    MailOtpCredentialService credentialService = mock(MailOtpCredentialService.class);
     otp = new Otp("123", 11L, 112L, null, 0);
     MailOtpCredentialModel credentialModel = MailOtpCredentialModel.createOtpModel(otp,
         Clock.systemDefaultZone(), false);
@@ -76,8 +77,9 @@ public class RealmOtpResourceProviderParameterizedTest {
     var userCredentialManager = mock(UserCredentialManager.class);
     when(session.userCredentialManager()).thenReturn(userCredentialManager);
     when(userCredentialManager.isConfiguredFor(any(), any(), any())).thenReturn(false);
+    var appCredentialService = mock(AppOtpCredentialService.class);
     resourceProvider = new RealmOtpResourceProvider(session, otpService, mailSender,
-        sessionAuthenticator, credentialService);
+        sessionAuthenticator, appCredentialService, credentialService);
   }
 
   @Test
