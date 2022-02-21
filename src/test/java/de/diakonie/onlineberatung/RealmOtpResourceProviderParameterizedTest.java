@@ -6,8 +6,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import de.diakonie.onlineberatung.authenticator.SessionAuthenticator;
-import de.diakonie.onlineberatung.credential.CredentialService;
+import de.diakonie.onlineberatung.credential.AppOtpCredentialService;
 import de.diakonie.onlineberatung.credential.MailOtpCredentialModel;
+import de.diakonie.onlineberatung.credential.MailOtpCredentialService;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpSetupDTO;
 import de.diakonie.onlineberatung.otp.Otp;
 import de.diakonie.onlineberatung.otp.OtpMailSender;
@@ -24,6 +25,7 @@ import org.junit.runners.Parameterized.Parameters;
 import org.keycloak.models.KeycloakContext;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
+import org.keycloak.models.UserCredentialManager;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.UserProvider;
 
@@ -57,7 +59,7 @@ public class RealmOtpResourceProviderParameterizedTest {
   public void setUp() {
     var session = mock(KeycloakSession.class);
     otpService = mock(OtpService.class);
-    CredentialService credentialService = mock(CredentialService.class);
+    MailOtpCredentialService credentialService = mock(MailOtpCredentialService.class);
     otp = new Otp("123", 11L, 112L, null, 0);
     MailOtpCredentialModel credentialModel = MailOtpCredentialModel.createOtpModel(otp,
         Clock.systemDefaultZone(), false);
@@ -72,8 +74,12 @@ public class RealmOtpResourceProviderParameterizedTest {
     when(session.users()).thenReturn(userProvider);
     UserModel user = mock(UserModel.class);
     when(userProvider.getUserByUsername(realm, "heinrich")).thenReturn(user);
+    var userCredentialManager = mock(UserCredentialManager.class);
+    when(session.userCredentialManager()).thenReturn(userCredentialManager);
+    when(userCredentialManager.isConfiguredFor(any(), any(), any())).thenReturn(false);
+    var appCredentialService = mock(AppOtpCredentialService.class);
     resourceProvider = new RealmOtpResourceProvider(session, otpService, mailSender,
-        sessionAuthenticator, credentialService);
+        sessionAuthenticator, appCredentialService, credentialService);
   }
 
   @Test

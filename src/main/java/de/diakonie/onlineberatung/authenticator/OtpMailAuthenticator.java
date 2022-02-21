@@ -6,8 +6,8 @@ import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
 
 import de.diakonie.onlineberatung.credential.CredentialContext;
-import de.diakonie.onlineberatung.credential.CredentialService;
 import de.diakonie.onlineberatung.credential.MailOtpCredentialModel;
+import de.diakonie.onlineberatung.credential.MailOtpCredentialService;
 import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.Challenge;
 import de.diakonie.onlineberatung.mail.MailSendingException;
 import de.diakonie.onlineberatung.otp.OtpMailSender;
@@ -35,10 +35,10 @@ public class OtpMailAuthenticator extends AbstractDirectGrantAuthenticator {
   private static final String INTERNAL_ERROR = "internal_error";
 
   private final OtpService otpService;
-  private final CredentialService credentialService;
+  private final MailOtpCredentialService credentialService;
   private final OtpMailSender mailSender;
 
-  public OtpMailAuthenticator(OtpService otpService, CredentialService credentialService,
+  public OtpMailAuthenticator(OtpService otpService, MailOtpCredentialService credentialService,
       OtpMailSender mailSender) {
     this.otpService = otpService;
     this.credentialService = credentialService;
