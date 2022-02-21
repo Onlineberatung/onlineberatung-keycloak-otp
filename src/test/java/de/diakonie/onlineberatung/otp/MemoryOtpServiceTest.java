@@ -37,7 +37,7 @@ public class MemoryOtpServiceTest {
 
     var otp = memoryOtpService.createOtp("hk@test.de");
 
-    var expected = new Otp("123456", 300, 1643894280000L, "hk@test.de", 0);
+    var expected = new Otp("123456", 900, 1643894880000L, "hk@test.de", 0);
     verify(otpGenerator).generate(6);
     assertThat(otp).isEqualTo(expected);
   }
