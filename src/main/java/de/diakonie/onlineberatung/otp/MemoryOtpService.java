@@ -17,7 +17,7 @@ import org.keycloak.models.AuthenticatorConfigModel;
 public class MemoryOtpService implements OtpService {
 
   private static final Logger logger = Logger.getLogger(MemoryOtpService.class);
-  private static final int DEFAULT_TTL_IN_SECONDS = 300;
+  private static final int DEFAULT_TTL_IN_SECONDS = 900;
   private static final int DEFAULT_CODE_LENGTH = 6;
   private static final int MAX_FAILED_VALIDATIONS = 3;
   private static final long SECOND_IN_MILLIS = 1000L;
