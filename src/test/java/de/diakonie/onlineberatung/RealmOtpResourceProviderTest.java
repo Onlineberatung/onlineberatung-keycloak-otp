@@ -310,6 +310,7 @@ public class RealmOtpResourceProviderTest {
     var response = resourceProvider.setupOtp("heinrich", otpSetup);
 
     assertThat(response.getStatus()).isEqualTo(201);
+    verify(appCredentialService).createCredential("4711", credentialModel, credentialContext);
   }
 
   @Test

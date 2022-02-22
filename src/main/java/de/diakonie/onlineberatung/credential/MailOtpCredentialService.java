@@ -1,5 +1,6 @@
 package de.diakonie.onlineberatung.credential;
 
+import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
 
 import de.diakonie.onlineberatung.otp.Otp;
@@ -32,6 +33,9 @@ public class MailOtpCredentialService {
 
   public void deleteCredential(CredentialContext context) {
     var credential = getCredential(context);
+    if (isNull(credential)) {
+      return;
+    }
     credentialProvider.deleteCredential(context.getRealm(), context.getUser(), credential.getId());
   }
 
