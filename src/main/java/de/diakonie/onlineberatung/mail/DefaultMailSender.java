@@ -1,17 +1,22 @@
 package de.diakonie.onlineberatung.mail;
 
+import static java.util.Collections.emptyList;
+import static java.util.Objects.isNull;
+
 import de.diakonie.onlineberatung.otp.Otp;
 import de.diakonie.onlineberatung.otp.OtpMailSender;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.keycloak.email.DefaultEmailSenderProvider;
+import org.keycloak.email.freemarker.FreeMarkerEmailTemplateProvider;
 import org.keycloak.models.ClientModel;
 import org.keycloak.models.GroupModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RoleModel;
 import org.keycloak.models.UserModel;
-import org.keycloak.theme.Theme;
+import org.keycloak.theme.FreeMarkerUtil;
 
 public class DefaultMailSender implements MailSender, OtpMailSender {
 
@@ -20,16 +25,25 @@ public class DefaultMailSender implements MailSender, OtpMailSender {
   @Override
   public void sendOtpCode(Otp otp, KeycloakSession session, UserModel user)
       throws MailSendingException {
+    UserModel mailRecipient = user;
     try {
-      var locale = session.getContext().resolveLocale(user);
-      var theme = session.theme().getTheme(Theme.Type.LOGIN);
-      var bodyTemplate = theme.getMessages(locale).getProperty("emailBody");
+      // for activation / verification mail it is possible the user has no email address, yet.
+      if (isNull(user.getEmail()) || user.getEmail().isBlank()) {
+        mailRecipient = new MailUser();
+        mailRecipient.setEmail(otp.getEmail());
+      }
       var ttlInMinutes = Math.floorDiv(otp.getTtlInSeconds(), MINUTE_IN_SECONDS);
-      var emailBody = String.format(bodyTemplate, otp.getCode(), ttlInMinutes);
-      var emailSubject = theme.getMessages(locale).getProperty("emailSubject");
-      var mailContext = new MailContext(emailSubject, emailBody, emailBody, session,
-          otp.getEmail());
-      send(mailContext);
+      var freeMarker = new FreeMarkerUtil();
+      var emailTemplateProvider = new FreeMarkerEmailTemplateProvider(session, freeMarker);
+      emailTemplateProvider.setRealm(session.getContext().getRealm());
+      emailTemplateProvider.setUser(mailRecipient);
+      var authenticationSession = session.getContext().getAuthenticationSession();
+      emailTemplateProvider.setAuthenticationSession(authenticationSession);
+      var attributes = new HashMap<String, Object>();
+      attributes.put("otp", otp.getCode());
+      attributes.put("ttl", ttlInMinutes);
+
+      emailTemplateProvider.send("emailSubject", emptyList(), "otp-email.ftl", attributes);
     } catch (Exception e) {
       throw new MailSendingException("failed to send otp mail", e);
     }
