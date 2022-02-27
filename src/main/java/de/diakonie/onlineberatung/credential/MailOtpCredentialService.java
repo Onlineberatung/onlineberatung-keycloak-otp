@@ -18,8 +18,11 @@ public class MailOtpCredentialService {
 
   public MailOtpCredentialModel createCredential(Otp otp, CredentialContext context) {
     var credentialModel = MailOtpCredentialModel.createOtpModel(otp, clock, false);
-    credentialProvider.createCredential(context.getRealm(), context.getUser(), credentialModel);
-    return credentialModel;
+    var storedCredentialModel = credentialProvider.createCredential(context.getRealm(),
+        context.getUser(),
+        credentialModel);
+    // create from stored credential model to get the ID
+    return MailOtpCredentialModel.createFromCredentialModel(storedCredentialModel);
   }
 
   public void update(MailOtpCredentialModel credentialModel, CredentialContext context) {
