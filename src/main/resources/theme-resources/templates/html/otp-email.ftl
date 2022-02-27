@@ -20,7 +20,7 @@
 
             <!-- claim -->
             <h1 style='color: #FFFFFF; font-size: 26px; font-weight: bold; line-height: 26px; padding-bottom: 0; margin-bottom: 0;'>
-              Beratung & Hilfe</h1>
+              Online-Beratung</h1>
             <div style='color: #FFFFFF; font-size: 12px; line-height: 19px;'>Online. Anonym.
               Sicher.
             </div>
