@@ -53,10 +53,9 @@
                 und ist für <span>${kcSanitize(msg("emailTtlBody", ttl))?no_esc}</span> Minuten
                 gültig.
                 <br/><br/>
-                Liebe Grüße,
-                <br/>
-                <br/>
+                Liebe Grüße,<br/>
                 Ihr Caritas Team
+                <br/><br/><br/>
               </div>
             </td>
           </tr>
