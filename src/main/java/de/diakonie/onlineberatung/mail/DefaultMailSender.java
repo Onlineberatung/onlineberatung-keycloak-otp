@@ -1,7 +1,6 @@
 package de.diakonie.onlineberatung.mail;
 
 import static java.util.Collections.emptyList;
-import static java.util.Objects.isNull;
 
 import de.diakonie.onlineberatung.otp.Otp;
 import de.diakonie.onlineberatung.otp.OtpMailSender;
@@ -29,17 +28,13 @@ public class DefaultMailSender implements MailSender, OtpMailSender {
   @Override
   public void sendOtpCode(Otp otp, KeycloakSession session, UserModel user)
       throws MailSendingException {
-    UserModel mailRecipient = user;
     try {
-      // for activation / verification mail it is possible the user has no email address, yet.
-      if (isNull(user.getEmail()) || user.getEmail().isBlank()) {
-        mailRecipient = new MailUser();
-        mailRecipient.setEmail(otp.getEmail());
-      }
       var ttlInMinutes = Math.floorDiv(otp.getTtlInSeconds(), MINUTE_IN_SECONDS);
       var freeMarker = new FreeMarkerUtil();
       var emailTemplateProvider = new FreeMarkerEmailTemplateProvider(session, freeMarker);
       emailTemplateProvider.setRealm(session.getContext().getRealm());
+      var mailRecipient = new MailUser();
+      mailRecipient.setEmail(otp.getEmail());
       emailTemplateProvider.setUser(mailRecipient);
       var authenticationSession = session.getContext().getAuthenticationSession();
       emailTemplateProvider.setAuthenticationSession(authenticationSession);
