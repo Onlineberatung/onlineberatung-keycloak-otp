@@ -93,20 +93,17 @@ public class MailOtpCredentialModel extends CredentialModel {
 
   void updateFailedVerifications(int failedVerifications) {
     this.credentialData.setFailedVerifications(failedVerifications);
-    updateInternalModel();
   }
 
   void setActive() {
     this.credentialData.setActive(true);
-    updateInternalModel();
   }
 
   void invalidateCode() {
     this.secretData.setCode(INVALIDATED);
-    updateInternalModel();
   }
 
-  private void updateInternalModel() {
+  void updateInternalModel() {
     try {
       setCredentialData(writeValueAsString(credentialData));
       setSecretData(writeValueAsString(secretData));
