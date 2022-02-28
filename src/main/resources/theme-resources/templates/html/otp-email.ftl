@@ -66,6 +66,18 @@
       <td width='5%' style="padding: 0;"><!-- spacer --></td>
     </tr>
   </table>
+
+  <table style="width: 100%">
+    <tr>
+      <td style='text-align: center; padding: 0;'>
+        <div style="text-align: center; padding-top: 8px;">
+          <a href="https://www.caritas.de/impressum" style="color: #8C878C; text-decoration: none; font-size: 14px; line-height: 19px;">Impressum</a>
+          <span style="color: #8C878C; text-decoration: none; font-size: 14px; line-height: 19px;">&nbsp; | &nbsp;</span>
+          <a href="https://www.caritas.de/datenschutz" style="color: #8C878C; text-decoration: none; font-size: 14px; line-height: 19px;">Datenschutz</a>
+        </div>
+      </td>
+    </tr>
+  </table>
 </div>
 </body>
 </html>
