@@ -67,6 +67,10 @@ public class MemoryOtpService implements OtpService {
       return EXPIRED;
     }
 
+    if (storedOtp.getFailedVerifications() >= MAX_FAILED_VALIDATIONS) {
+      return TOO_MANY_FAILED_ATTEMPTS;
+    }
+
     if (!storedOtp.getCode().equals(currentCode)) {
       var failedVerifications = storedOtp.getFailedVerifications() + 1;
       if (failedVerifications > MAX_FAILED_VALIDATIONS) {

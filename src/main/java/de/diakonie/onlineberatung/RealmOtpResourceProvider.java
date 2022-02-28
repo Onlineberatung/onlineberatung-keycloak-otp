@@ -1,6 +1,5 @@
 package de.diakonie.onlineberatung;
 
-import static de.diakonie.onlineberatung.credential.MailOtpCredentialModel.INVALIDATED;
 import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
 
@@ -294,8 +293,8 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
         return Response.status(Status.UNAUTHORIZED).entity(
             new Error().error(INVALID_GRANT_ERROR).errorDescription("Code expired")).build();
       case INVALID:
-        credentialModel.updateFailedVerifications(otp.getFailedVerifications() + 1);
-        mailCredentialService.update(credentialModel, context);
+        mailCredentialService.incrementFailedAttempts(credentialModel, context,
+            otp.getFailedVerifications());
         return Response.status(Status.UNAUTHORIZED).entity(
             new Error().error(INVALID_GRANT_ERROR).errorDescription("Invalid code")).build();
       case TOO_MANY_FAILED_ATTEMPTS:
@@ -303,9 +302,7 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
             new Error().error(INVALID_GRANT_ERROR)
                 .errorDescription("Maximal number of failed attempts reached")).build();
       case VALID:
-        credentialModel.setActive();
-        credentialModel.updateCode(INVALIDATED);
-        mailCredentialService.update(credentialModel, context);
+        mailCredentialService.activate(credentialModel, context);
         return Response.status(Status.CREATED)
             .entity(new SuccessWithEmail().email(otp.getEmail()).info("OTP setup created"))
             .build();

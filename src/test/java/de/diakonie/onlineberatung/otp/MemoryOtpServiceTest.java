@@ -110,4 +110,12 @@ public class MemoryOtpServiceTest {
     assertThat(memoryOtpService.validate("4", tooManyAttempts)).isEqualTo(TOO_MANY_FAILED_ATTEMPTS);
   }
 
+  @Test
+  public void validate_should_not_be_valid_if_too_may_attempts_were_made_even_if_code_is_valid() {
+    var tooManyFailed = new Otp("4711", 300, fixed.millis() + 1000, null, 3);
+
+    var result = memoryOtpService.validate("4711", tooManyFailed);
+
+    assertThat(result).isEqualTo(TOO_MANY_FAILED_ATTEMPTS);
+  }
 }

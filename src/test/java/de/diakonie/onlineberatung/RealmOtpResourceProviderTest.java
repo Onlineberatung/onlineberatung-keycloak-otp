@@ -1,6 +1,5 @@
 package de.diakonie.onlineberatung;
 
-import static de.diakonie.onlineberatung.credential.MailOtpCredentialModel.INVALIDATED;
 import static de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpType.APP;
 import static de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpType.EMAIL;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
@@ -193,8 +192,7 @@ public class RealmOtpResourceProviderTest {
     assertThat(response.getStatus()).isEqualTo(201);
     var otpWithEmailSuccess = response.readEntity(SuccessWithEmail.class);
     assertThat(otpWithEmailSuccess.getEmail()).isEqualTo("hk@test.de");
-    assertThat(credentialModel.getOtp().getCode()).isEqualTo(INVALIDATED);
-    verify(mailCredentialService).update(credentialModel, credentialContext);
+    verify(mailCredentialService).activate(credentialModel, credentialContext);
   }
 
   @Test

@@ -1,35 +1,48 @@
 package de.diakonie.onlineberatung.mail;
 
+import static java.util.Collections.emptyList;
+
 import de.diakonie.onlineberatung.otp.Otp;
 import de.diakonie.onlineberatung.otp.OtpMailSender;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.keycloak.email.DefaultEmailSenderProvider;
+import org.keycloak.email.freemarker.FreeMarkerEmailTemplateProvider;
 import org.keycloak.models.ClientModel;
 import org.keycloak.models.GroupModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RoleModel;
 import org.keycloak.models.UserModel;
-import org.keycloak.theme.Theme;
+import org.keycloak.theme.FreeMarkerUtil;
 
 public class DefaultMailSender implements MailSender, OtpMailSender {
 
   private static final int MINUTE_IN_SECONDS = 60;
+  private static final String OTP_MAIL_TEMPLATE = "otp-email.ftl";
+  private static final String EMAIL_SUBJECT = "emailSubject";
+  private static final String OTP_ATTRIBUTE = "otp";
+  private static final String TTL_ATTRIBUTE = "ttl";
 
   @Override
   public void sendOtpCode(Otp otp, KeycloakSession session, UserModel user)
       throws MailSendingException {
     try {
-      var locale = session.getContext().resolveLocale(user);
-      var theme = session.theme().getTheme(Theme.Type.LOGIN);
-      var bodyTemplate = theme.getMessages(locale).getProperty("emailBody");
       var ttlInMinutes = Math.floorDiv(otp.getTtlInSeconds(), MINUTE_IN_SECONDS);
-      var emailBody = String.format(bodyTemplate, otp.getCode(), ttlInMinutes);
-      var emailSubject = theme.getMessages(locale).getProperty("emailSubject");
-      var mailContext = new MailContext(emailSubject, emailBody, emailBody, session,
-          otp.getEmail());
-      send(mailContext);
+      var freeMarker = new FreeMarkerUtil();
+      var emailTemplateProvider = new FreeMarkerEmailTemplateProvider(session, freeMarker);
+      emailTemplateProvider.setRealm(session.getContext().getRealm());
+      var mailRecipient = new MailUser();
+      mailRecipient.setEmail(otp.getEmail());
+      emailTemplateProvider.setUser(mailRecipient);
+      var authenticationSession = session.getContext().getAuthenticationSession();
+      emailTemplateProvider.setAuthenticationSession(authenticationSession);
+      var attributes = new HashMap<String, Object>();
+      attributes.put(OTP_ATTRIBUTE, otp.getCode());
+      attributes.put(TTL_ATTRIBUTE, ttlInMinutes);
+
+      emailTemplateProvider.send(EMAIL_SUBJECT, emptyList(), OTP_MAIL_TEMPLATE, attributes);
     } catch (Exception e) {
       throw new MailSendingException("failed to send otp mail", e);
     }
@@ -164,7 +177,7 @@ public class DefaultMailSender implements MailSender, OtpMailSender {
 
     @Override
     public void setEmail(String email) {
-
+      emailAddress = email;
     }
 
     @Override

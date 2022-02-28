@@ -28,7 +28,7 @@ import org.keycloak.provider.ProviderConfigProperty;
 
 public class OtpMailAuthenticator extends AbstractDirectGrantAuthenticator {
 
-  public static String AUTHENTICATOR_ID = "email-authenticator";
+  public static final String AUTHENTICATOR_ID = "email-authenticator";
 
   private static final Logger logger = Logger.getLogger(OtpMailAuthenticator.class);
   private static final String INVALID_GRANT_ERROR = "invalid_grant";
@@ -123,8 +123,8 @@ public class OtpMailAuthenticator extends AbstractDirectGrantAuthenticator {
                 INVALID_GRANT_ERROR, "Code expired"));
         break;
       case INVALID:
-        credentialModel.updateFailedVerifications(otp.getFailedVerifications() + 1);
-        credentialService.update(credentialModel, credContext);
+        credentialService.incrementFailedAttempts(credentialModel, credContext,
+            otp.getFailedVerifications());
         context.failure(AuthenticationFlowError.INVALID_CREDENTIALS,
             errorResponse(Status.UNAUTHORIZED.getStatusCode(),
                 INVALID_GRANT_ERROR, "Invalid code"));
