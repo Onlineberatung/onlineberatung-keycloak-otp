@@ -29,6 +29,19 @@ public class MailOtpCredentialService {
     credentialProvider.updateCredential(context.getRealm(), context.getUser(), credentialModel);
   }
 
+  public void incrementFailedAttempts(MailOtpCredentialModel credentialModel,
+      CredentialContext context, int currentAttempts) {
+    credentialModel.updateFailedVerifications(currentAttempts + 1);
+    credentialProvider.updateCredential(context.getRealm(), context.getUser(), credentialModel);
+  }
+
+  public void activate(MailOtpCredentialModel credentialModel, CredentialContext context) {
+    credentialModel.setActive();
+    credentialModel.updateFailedVerifications(0);
+    credentialModel.invalidateCode();
+    credentialProvider.updateCredential(context.getRealm(), context.getUser(), credentialModel);
+  }
+
   public MailOtpCredentialModel getCredential(CredentialContext context) {
     return credentialProvider.getDefaultCredential(context.getSession(), context.getRealm(),
         context.getUser());
@@ -43,7 +56,8 @@ public class MailOtpCredentialService {
   }
 
   public void invalidate(MailOtpCredentialModel credentialModel, CredentialContext context) {
-    credentialModel.updateCode(MailOtpCredentialModel.INVALIDATED);
+    credentialModel.updateFailedVerifications(0);
+    credentialModel.invalidateCode();
     credentialProvider.updateCredential(context.getRealm(), context.getUser(), credentialModel);
   }
 

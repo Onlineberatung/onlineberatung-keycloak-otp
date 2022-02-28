@@ -164,7 +164,6 @@ public class OtpMailAuthenticatorTest {
 
     authenticator.authenticate(authFlow);
 
-    assertThat(credentialModel.getOtp().getFailedVerifications()).isEqualTo(1);
-    verify(credentialService).update(credentialModel, credentialContext);
+    verify(credentialService).incrementFailedAttempts(credentialModel, credentialContext, 0);
   }
 }

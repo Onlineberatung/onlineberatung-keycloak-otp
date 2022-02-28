@@ -123,8 +123,8 @@ public class OtpMailAuthenticator extends AbstractDirectGrantAuthenticator {
                 INVALID_GRANT_ERROR, "Code expired"));
         break;
       case INVALID:
-        credentialModel.updateFailedVerifications(otp.getFailedVerifications() + 1);
-        credentialService.update(credentialModel, credContext);
+        credentialService.incrementFailedAttempts(credentialModel, credContext,
+            otp.getFailedVerifications());
         context.failure(AuthenticationFlowError.INVALID_CREDENTIALS,
             errorResponse(Status.UNAUTHORIZED.getStatusCode(),
                 INVALID_GRANT_ERROR, "Invalid code"));
