@@ -21,6 +21,10 @@ import org.keycloak.theme.FreeMarkerUtil;
 public class DefaultMailSender implements MailSender, OtpMailSender {
 
   private static final int MINUTE_IN_SECONDS = 60;
+  private static final String OTP_MAIL_TEMPLATE = "otp-email.ftl";
+  private static final String EMAIL_SUBJECT = "emailSubject";
+  private static final String OTP_ATTRIBUTE = "otp";
+  private static final String TTL_ATTRIBUTE = "ttl";
 
   @Override
   public void sendOtpCode(Otp otp, KeycloakSession session, UserModel user)
@@ -40,10 +44,10 @@ public class DefaultMailSender implements MailSender, OtpMailSender {
       var authenticationSession = session.getContext().getAuthenticationSession();
       emailTemplateProvider.setAuthenticationSession(authenticationSession);
       var attributes = new HashMap<String, Object>();
-      attributes.put("otp", otp.getCode());
-      attributes.put("ttl", ttlInMinutes);
+      attributes.put(OTP_ATTRIBUTE, otp.getCode());
+      attributes.put(TTL_ATTRIBUTE, ttlInMinutes);
 
-      emailTemplateProvider.send("emailSubject", emptyList(), "otp-email.ftl", attributes);
+      emailTemplateProvider.send(EMAIL_SUBJECT, emptyList(), OTP_MAIL_TEMPLATE, attributes);
     } catch (Exception e) {
       throw new MailSendingException("failed to send otp mail", e);
     }
@@ -178,7 +182,7 @@ public class DefaultMailSender implements MailSender, OtpMailSender {
 
     @Override
     public void setEmail(String email) {
-
+      emailAddress = email;
     }
 
     @Override
