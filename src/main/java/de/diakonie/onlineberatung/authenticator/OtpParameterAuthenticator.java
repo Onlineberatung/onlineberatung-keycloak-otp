@@ -1,8 +1,12 @@
 package de.diakonie.onlineberatung.authenticator;
 
+import static de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpType.APP;
+import static java.util.Objects.isNull;
+
+import de.diakonie.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.Challenge;
 import java.util.Collections;
 import java.util.List;
-import javax.ws.rs.core.MultivaluedMap;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import org.keycloak.authentication.AuthenticationFlowContext;
@@ -13,12 +17,14 @@ import org.keycloak.models.AuthenticationExecutionModel.Requirement;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.models.credential.OTPCredentialModel;
 import org.keycloak.provider.ProviderConfigProperty;
 
 public class OtpParameterAuthenticator extends AbstractDirectGrantAuthenticator {
 
   public static final String ID = "otp-parameter-authenticator";
-  AuthenticationExecutionModel.Requirement[] REQUIREMENT_CHOICES = {
+
+  final AuthenticationExecutionModel.Requirement[] REQUIREMENT_CHOICES = {
       AuthenticationExecutionModel.Requirement.REQUIRED};
 
   @Override
@@ -28,15 +34,14 @@ public class OtpParameterAuthenticator extends AbstractDirectGrantAuthenticator 
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
-    MultivaluedMap<String, String> inputData = context.getHttpRequest().getDecodedFormParameters();
-    String otp = inputData.getFirst("otp");
-    otp = (otp == null) ? inputData.getFirst("totp") : otp;
+    String otpOfRequest = extractDecodedOtpParam(context);
 
-    if (otp == null) {
-      Response challengeResponse = errorResponse(Status.BAD_REQUEST.getStatusCode(),
-          "invalid_grant", "Missing totp");
-      context.failure(
-          AuthenticationFlowError.INVALID_CREDENTIALS, challengeResponse);
+    if (otpOfRequest == null) {
+      Challenge challengeResponse = new Challenge().error("invalid_grant")
+          .errorDescription("Missing totp").otpType(APP);
+      context.failure(AuthenticationFlowError.INVALID_CREDENTIALS,
+          Response.status(Status.BAD_REQUEST).entity(challengeResponse)
+              .type(MediaType.APPLICATION_JSON_TYPE).build());
       return;
     }
     context.success();
@@ -44,13 +49,14 @@ public class OtpParameterAuthenticator extends AbstractDirectGrantAuthenticator 
 
   @Override
   public boolean requiresUser() {
-    return false;
+    return true;
   }
 
   @Override
   public boolean configuredFor(KeycloakSession keycloakSession, RealmModel realmModel,
       UserModel userModel) {
-    return true;
+    return keycloakSession.userCredentialManager()
+        .isConfiguredFor(realmModel, userModel, OTPCredentialModel.TYPE);
   }
 
   @Override
@@ -66,7 +72,7 @@ public class OtpParameterAuthenticator extends AbstractDirectGrantAuthenticator 
 
   @Override
   public String getReferenceCategory() {
-    return null;
+    return "otp";
   }
 
   @Override
@@ -92,5 +98,12 @@ public class OtpParameterAuthenticator extends AbstractDirectGrantAuthenticator 
   @Override
   public List<ProviderConfigProperty> getConfigProperties() {
     return Collections.emptyList();
+  }
+
+  static String extractDecodedOtpParam(AuthenticationFlowContext context) {
+    var inputData = context.getHttpRequest().getDecodedFormParameters();
+    var otpParam = inputData.getFirst("otp");
+    otpParam = (isNull(otpParam)) ? inputData.getFirst("totp") : otpParam;
+    return otpParam;
   }
 }
