@@ -24,8 +24,8 @@ public class LoggingEventListenerProvider implements EventListenerProvider {
   private final Logger logger;
   private final Logger.Level successLevel;
   private final Logger.Level errorLevel;
-  private final EventListenerTransaction tx = new EventListenerTransaction(this::logAdminEvent,
-      this::logEvent);
+  private final EventListenerTransaction listenerTransaction = new EventListenerTransaction(
+      this::logAdminEvent, this::logEvent);
 
   public LoggingEventListenerProvider(KeycloakSession session, Logger logger,
       Logger.Level successLevel, Logger.Level errorLevel) {
@@ -33,17 +33,17 @@ public class LoggingEventListenerProvider implements EventListenerProvider {
     this.logger = logger;
     this.successLevel = successLevel;
     this.errorLevel = errorLevel;
-    this.session.getTransactionManager().enlistAfterCompletion(tx);
+    this.session.getTransactionManager().enlistAfterCompletion(listenerTransaction);
   }
 
   @Override
   public void onEvent(Event event) {
-    tx.addEvent(event);
+    listenerTransaction.addEvent(event);
   }
 
   @Override
   public void onEvent(AdminEvent adminEvent, boolean includeRepresentation) {
-    tx.addAdminEvent(adminEvent, includeRepresentation);
+    listenerTransaction.addAdminEvent(adminEvent, includeRepresentation);
   }
 
   private void logEvent(Event event) {
@@ -69,26 +69,12 @@ public class LoggingEventListenerProvider implements EventListenerProvider {
     }
 
     if (event.getDetails() != null) {
-      for (Map.Entry<String, String> e : event.getDetails().entrySet()) {
-        sb.append(", ");
-        sb.append(e.getKey());
-        if (e.getValue() == null || e.getValue().indexOf(' ') == -1) {
-          sb.append("=");
-          sb.append(e.getValue());
-        } else {
-          sb.append("='");
-          sb.append(e.getValue());
-          sb.append("'");
-        }
-      }
+      appendDetails(event, sb);
     }
 
     AuthenticationSessionModel authSession = session.getContext().getAuthenticationSession();
     if (authSession != null) {
-      sb.append(", authSessionParentId=");
-      sb.append(authSession.getParentSession().getId());
-      sb.append(", authSessionTabId=");
-      sb.append(authSession.getTabId());
+      appendSession(sb, authSession);
     }
 
     if (logger.isTraceEnabled()) {
@@ -100,6 +86,28 @@ public class LoggingEventListenerProvider implements EventListenerProvider {
     }
 
     logger.log(logger.isTraceEnabled() ? Logger.Level.TRACE : level, sb.toString());
+  }
+
+  private void appendDetails(Event event, StringBuilder sb) {
+    for (Map.Entry<String, String> e : event.getDetails().entrySet()) {
+      sb.append(", ");
+      sb.append(e.getKey());
+      if (e.getValue() == null || e.getValue().indexOf(' ') == -1) {
+        sb.append("=");
+        sb.append(e.getValue());
+      } else {
+        sb.append("='");
+        sb.append(e.getValue());
+        sb.append("'");
+      }
+    }
+  }
+
+  private void appendSession(StringBuilder sb, AuthenticationSessionModel authSession) {
+    sb.append(", authSessionParentId=");
+    sb.append(authSession.getParentSession().getId());
+    sb.append(", authSessionTabId=");
+    sb.append(authSession.getTabId());
   }
 
   private void logAdminEvent(AdminEvent adminEvent, boolean includeRepresentation) {
@@ -153,14 +161,14 @@ public class LoggingEventListenerProvider implements EventListenerProvider {
     }
 
     sb.append(", cookies=[");
-    boolean f = true;
-    for (Map.Entry<String, Cookie> e : headers.getCookies().entrySet()) {
-      if (f) {
-        f = false;
+    boolean isFirst = true;
+    for (Map.Entry<String, Cookie> cookieEntry : headers.getCookies().entrySet()) {
+      if (isFirst) {
+        isFirst = false;
       } else {
         sb.append(", ");
       }
-      sb.append(e.getValue().toString());
+      sb.append(cookieEntry.getValue().toString());
     }
     sb.append("]");
   }
