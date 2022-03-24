@@ -2,22 +2,22 @@ package de.diakonie.onlineberatung.mail;
 
 import static java.util.Collections.emptyList;
 
+import de.diakonie.onlineberatung.credential.CredentialContext;
 import de.diakonie.onlineberatung.otp.Otp;
 import de.diakonie.onlineberatung.otp.OtpMailSender;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.keycloak.email.DefaultEmailSenderProvider;
+import org.keycloak.email.EmailTemplateProvider;
 import org.keycloak.email.freemarker.FreeMarkerEmailTemplateProvider;
 import org.keycloak.models.ClientModel;
 import org.keycloak.models.GroupModel;
-import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RoleModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.theme.FreeMarkerUtil;
 
-public class DefaultMailSender implements MailSender, OtpMailSender {
+public class DefaultMailSender implements OtpMailSender {
 
   private static final int MINUTE_IN_SECONDS = 60;
   private static final String OTP_MAIL_TEMPLATE = "otp-email.ftl";
@@ -26,43 +26,40 @@ public class DefaultMailSender implements MailSender, OtpMailSender {
   private static final String TTL_ATTRIBUTE = "ttl";
 
   @Override
-  public void sendOtpCode(Otp otp, KeycloakSession session, UserModel user)
-      throws MailSendingException {
+  public void sendOtpCode(Otp otp, CredentialContext context) throws MailSendingException {
     try {
-      var ttlInMinutes = Math.floorDiv(otp.getTtlInSeconds(), MINUTE_IN_SECONDS);
-      var freeMarker = new FreeMarkerUtil();
-      var emailTemplateProvider = new FreeMarkerEmailTemplateProvider(session, freeMarker);
-      emailTemplateProvider.setRealm(session.getContext().getRealm());
-      var mailRecipient = new MailUser();
-      mailRecipient.setEmail(otp.getEmail());
-      emailTemplateProvider.setUser(mailRecipient);
-      var authenticationSession = session.getContext().getAuthenticationSession();
-      emailTemplateProvider.setAuthenticationSession(authenticationSession);
-      var attributes = new HashMap<String, Object>();
-      attributes.put(OTP_ATTRIBUTE, otp.getCode());
-      attributes.put(TTL_ATTRIBUTE, ttlInMinutes);
+      var mailRecipient = createMailRecipient(otp);
+      var mailAttributes = createMailAttributes(otp);
+      var mailTemplateProvider = createMailTemplateProvider(context, mailRecipient);
 
-      emailTemplateProvider.send(EMAIL_SUBJECT, emptyList(), OTP_MAIL_TEMPLATE, attributes);
+      mailTemplateProvider.send(EMAIL_SUBJECT, emptyList(), OTP_MAIL_TEMPLATE, mailAttributes);
     } catch (Exception e) {
       throw new MailSendingException("failed to send otp mail", e);
     }
   }
 
-  @Override
-  public void send(MailContext mailContext) throws MailSendingException {
-    try {
-      var session = mailContext.getSession();
-      var smtpConfig = session.getContext().getRealm().getSmtpConfig();
-      var user = new MailUser();
-      user.emailAddress = mailContext.getEmailAddress();
-      var subject = mailContext.getSubject();
-      var textBody = mailContext.getTextBody();
-      var htmlBody = mailContext.getHtmlBody();
-      var emailSenderProvider = new DefaultEmailSenderProvider(session);
-      emailSenderProvider.send(smtpConfig, user, subject, textBody, htmlBody);
-    } catch (Exception e) {
-      throw new MailSendingException("failed to send mail", e);
-    }
+  private UserModel createMailRecipient(Otp otp) {
+    var mailRecipient = new MailUser();
+    mailRecipient.setEmail(otp.getEmail());
+    return mailRecipient;
+  }
+
+  private HashMap<String, Object> createMailAttributes(Otp otp) {
+    var attributes = new HashMap<String, Object>();
+    attributes.put(OTP_ATTRIBUTE, otp.getCode());
+    var ttlInSeconds = otp.getTtlInSeconds() > 0 ? otp.getTtlInSeconds() : 60;
+    attributes.put(TTL_ATTRIBUTE, Math.floorDiv(ttlInSeconds, MINUTE_IN_SECONDS));
+    return attributes;
+  }
+
+  private EmailTemplateProvider createMailTemplateProvider(CredentialContext context,
+      UserModel mailRecipient) {
+    var freeMarker = new FreeMarkerUtil();
+    var emailTemplateProvider = new FreeMarkerEmailTemplateProvider(context.getSession(),
+        freeMarker);
+    emailTemplateProvider.setRealm(context.getRealm());
+    emailTemplateProvider.setUser(mailRecipient);
+    return emailTemplateProvider;
   }
 
   // DefaultEmailSenderProvider just needs the email of the user, yet asks for the whole model

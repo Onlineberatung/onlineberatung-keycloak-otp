@@ -34,7 +34,6 @@ import org.keycloak.models.credential.OTPCredentialModel;
 
 public class RealmOtpResourceProviderTest {
 
-  private KeycloakSession session;
   private OtpService otpService;
   private OtpMailSender mailSender;
   private RealmOtpResourceProvider resourceProvider;
@@ -47,7 +46,7 @@ public class RealmOtpResourceProviderTest {
 
   @Before
   public void setUp() {
-    session = mock(KeycloakSession.class);
+    KeycloakSession session = mock(KeycloakSession.class);
     otpService = mock(OtpService.class);
     mailCredentialService = mock(MailOtpCredentialService.class);
     mailSender = mock(OtpMailSender.class);
@@ -76,7 +75,7 @@ public class RealmOtpResourceProviderTest {
     var response = resourceProvider.sendVerificationMail("heinrich", mailSetup);
 
     assertThat(response.getStatus()).isEqualTo(200);
-    verify(mailSender).sendOtpCode(otp, session, user);
+    verify(mailSender).sendOtpCode(otp, credentialContext);
   }
 
   @Test
@@ -96,7 +95,7 @@ public class RealmOtpResourceProviderTest {
 
     assertThat(response.getStatus()).isEqualTo(200);
     var expectedCredentials = notYetActivatedCredentials.updateFrom(newOtp);
-    verify(mailSender).sendOtpCode(newOtp, session, user);
+    verify(mailSender).sendOtpCode(newOtp, credentialContext);
     verify(mailCredentialService).update(expectedCredentials, credentialContext);
   }
 
@@ -125,7 +124,7 @@ public class RealmOtpResourceProviderTest {
     mailSetup.setEmail("hk@test.de");
     var otp = new Otp("123", 450L, 1234567L, "hk@test.de", 0);
     when(otpService.createOtp("hk@test.de")).thenReturn(otp);
-    doThrow(MailSendingException.class).when(mailSender).sendOtpCode(any(), any(), any());
+    doThrow(MailSendingException.class).when(mailSender).sendOtpCode(any(), any());
     var credentialModel = MailOtpCredentialModel.createOtpModel(otp, Clock.systemDefaultZone());
     when(mailCredentialService.createCredential(otp, credentialContext)).thenReturn(
         credentialModel);
