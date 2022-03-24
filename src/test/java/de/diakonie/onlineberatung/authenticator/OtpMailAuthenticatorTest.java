@@ -111,7 +111,7 @@ public class OtpMailAuthenticatorTest {
     assertThat(responseCaptor.getValue().getStatus()).isEqualTo(400);
     var challenge = responseCaptor.getValue().readEntity(Challenge.class);
     assertThat(challenge.getOtpType()).isEqualTo(EMAIL);
-    verify(mailSender).sendOtpCode(eq(expectedOtp), any(), eq(user));
+    verify(mailSender).sendOtpCode(expectedOtp, credentialContext);
   }
 
   @Test
@@ -130,7 +130,7 @@ public class OtpMailAuthenticatorTest {
     assertThat(responseCaptor.getValue().getStatus()).isEqualTo(400);
     var challenge = responseCaptor.getValue().readEntity(Challenge.class);
     assertThat(challenge.getOtpType()).isEqualTo(EMAIL);
-    verify(mailSender).sendOtpCode(eq(expectedOtp), any(), eq(user));
+    verify(mailSender).sendOtpCode(expectedOtp, credentialContext);
   }
 
   @Test
@@ -141,7 +141,7 @@ public class OtpMailAuthenticatorTest {
     when(otpService.createOtp("mymail@test.de")).thenReturn(expectedOtp);
     var credentialModel = createOtpModel(expectedOtp, systemDefaultZone());
     when(credentialService.getCredential(credentialContext)).thenReturn(credentialModel);
-    doThrow(MailSendingException.class).when(mailSender).sendOtpCode(any(), any(), any());
+    doThrow(MailSendingException.class).when(mailSender).sendOtpCode(any(), any());
 
     authenticator.authenticate(authFlow);
 

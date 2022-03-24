@@ -254,7 +254,7 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
     }
 
     try {
-      mailSender.sendOtpCode(otp, context.getSession(), context.getUser());
+      mailSender.sendOtpCode(otp, context);
     } catch (MailSendingException e) {
       if (nonNull(credentialModel)) {
         mailCredentialService.invalidate(credentialModel, context);
