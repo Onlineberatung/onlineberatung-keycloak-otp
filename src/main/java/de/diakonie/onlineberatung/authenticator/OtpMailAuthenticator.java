@@ -91,7 +91,7 @@ public class OtpMailAuthenticator extends AbstractDirectGrantAuthenticator {
     credentialService.update(credentialModel.updateFrom(otp), credContext);
 
     try {
-      mailSender.sendOtpCode(otp, credContext.getSession(), credContext.getUser());
+      mailSender.sendOtpCode(otp, credContext);
       var challengeResponse = new Challenge().error(INVALID_GRANT_ERROR)
           .errorDescription("Missing totp").otpType(EMAIL);
       context.failure(AuthenticationFlowError.INVALID_CREDENTIALS,
