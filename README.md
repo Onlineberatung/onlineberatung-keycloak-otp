@@ -1,4 +1,4 @@
-# diakonie-onlineberatung-keycloak-otp
+# onlineberatung-keycloak-otp
 
 Adds additional endpoints to keycloak to configure 2FA. Currently supports 2FA via:
 
