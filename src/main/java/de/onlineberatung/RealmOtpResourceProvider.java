@@ -110,10 +110,6 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
               .errorDescription(MISSING_USERNAME_ERROR_DESCRIPTION)).build();
     }
     var credentialContext = new CredentialContext(session, realm, user);
-    if (mailCredentialService.is2FAConfigured(credentialContext)) {
-      return Response.status(Status.CONFLICT).entity(new Error().error(MAIL_OTP_ALREADY_ACTIVE))
-          .build();
-    }
     if (appCredentialService.is2FAConfigured(credentialContext)) {
       return Response.ok(new Success().info("OTP credential is already configured for this user"))
           .build();
@@ -129,6 +125,7 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
     }
 
     appCredentialService.createCredential(dto.getInitialCode(), credentialModel, credentialContext);
+    mailCredentialService.deleteCredential(credentialContext);
 
     return Response.status(Status.CREATED)
         .entity(new Success().info("OTP credential created")).build();

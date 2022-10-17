@@ -276,12 +276,20 @@ public class RealmOtpResourceProviderTest {
   }
 
   @Test
-  public void setupOtp_should_be_conflict_if_mail_otp_is_already_configured() {
-    when(mailCredentialService.is2FAConfigured(credentialContext)).thenReturn(true);
+  public void setupOtp_should_be_created_and_delete_mail_otp_if_mail_otp_is_already_configured() {
+    var otpSetup = new OtpSetupDTO();
+    otpSetup.setSecret("secretSecret");
+    otpSetup.setInitialCode("4711");
+    var credentialModel = mock(OTPCredentialModel.class);
+    when(appCredentialService.createModel("secretSecret", credentialContext)).thenReturn(
+            credentialModel);
+    when((appCredentialService.validate("4711", credentialModel, credentialContext))).thenReturn(
+            true);
 
-    var response = resourceProvider.setupOtp("heinrich", new OtpSetupDTO());
+    var response = resourceProvider.setupOtp("heinrich", otpSetup);
 
-    assertThat(response.getStatus()).isEqualTo(409);
+    assertThat(response.getStatus()).isEqualTo(201);
+    verify(mailCredentialService).deleteCredential(any(CredentialContext.class));
   }
 
 
