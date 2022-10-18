@@ -1,38 +1,28 @@
 package de.onlineberatung;
 
-import static java.util.Objects.isNull;
-import static java.util.Objects.nonNull;
-
 import de.onlineberatung.authenticator.SessionAuthenticator;
 import de.onlineberatung.credential.AppOtpCredentialService;
 import de.onlineberatung.credential.CredentialContext;
 import de.onlineberatung.credential.MailOtpCredentialService;
 import de.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.Error;
-import de.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpInfoDTO;
-import de.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpSetupDTO;
-import de.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpType;
-import de.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.Success;
-import de.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.SuccessWithEmail;
+import de.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.*;
 import de.onlineberatung.mail.MailSendingException;
 import de.onlineberatung.otp.Otp;
 import de.onlineberatung.otp.OtpMailSender;
 import de.onlineberatung.otp.OtpService;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
 import org.jboss.logging.Logger;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.services.resource.RealmResourceProvider;
+
+import javax.ws.rs.*;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
+
+import static java.util.Objects.isNull;
+import static java.util.Objects.nonNull;
 
 public class RealmOtpResourceProvider implements RealmResourceProvider {
 
@@ -89,6 +79,11 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
       return Response.ok(otpInfoDTO).build();
     }
 
+    var otpSecret = appCredentialService.generateSecret();
+    otpInfoDTO.setOtpSecret(otpSecret);
+    var qrCode = appCredentialService.generateQRCodeBase64(otpSecret, credentialContext);
+    otpInfoDTO.setOtpSecretQrCode(qrCode);
+
     if (mailCredentialService.is2FAConfigured(credentialContext)) {
       otpInfoDTO.setOtpSetup(true);
       otpInfoDTO.setOtpType(OtpType.EMAIL);
@@ -96,10 +91,6 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
     }
 
     otpInfoDTO.setOtpSetup(false);
-    var otpSecret = appCredentialService.generateSecret();
-    otpInfoDTO.setOtpSecret(otpSecret);
-    var qrCode = appCredentialService.generateQRCodeBase64(otpSecret, credentialContext);
-    otpInfoDTO.setOtpSecretQrCode(qrCode);
     return Response.ok(otpInfoDTO).build();
   }
 
@@ -119,10 +110,6 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
               .errorDescription(MISSING_USERNAME_ERROR_DESCRIPTION)).build();
     }
     var credentialContext = new CredentialContext(session, realm, user);
-    if (mailCredentialService.is2FAConfigured(credentialContext)) {
-      return Response.status(Status.CONFLICT).entity(new Error().error(MAIL_OTP_ALREADY_ACTIVE))
-          .build();
-    }
     if (appCredentialService.is2FAConfigured(credentialContext)) {
       return Response.ok(new Success().info("OTP credential is already configured for this user"))
           .build();
@@ -138,6 +125,7 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
     }
 
     appCredentialService.createCredential(dto.getInitialCode(), credentialModel, credentialContext);
+    mailCredentialService.deleteCredential(credentialContext);
 
     return Response.status(Status.CREATED)
         .entity(new Success().info("OTP credential created")).build();

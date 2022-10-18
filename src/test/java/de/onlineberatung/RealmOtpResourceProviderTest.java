@@ -1,12 +1,5 @@
 package de.onlineberatung;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 import de.onlineberatung.authenticator.SessionAuthenticator;
 import de.onlineberatung.credential.AppOtpCredentialService;
 import de.onlineberatung.credential.CredentialContext;
@@ -14,23 +7,24 @@ import de.onlineberatung.credential.MailOtpCredentialModel;
 import de.onlineberatung.credential.MailOtpCredentialService;
 import de.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpInfoDTO;
 import de.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpSetupDTO;
+import de.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpType;
 import de.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.SuccessWithEmail;
 import de.onlineberatung.mail.MailSendingException;
 import de.onlineberatung.otp.Otp;
 import de.onlineberatung.otp.OtpMailSender;
 import de.onlineberatung.otp.OtpService;
 import de.onlineberatung.otp.ValidationResult;
-import de.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpType;
-import java.time.Clock;
 import org.junit.Before;
 import org.junit.Test;
-import org.keycloak.models.KeycloakContext;
-import org.keycloak.models.KeycloakSession;
-import org.keycloak.models.RealmModel;
-import org.keycloak.models.UserModel;
-import org.keycloak.models.UserProvider;
+import org.keycloak.models.*;
 import org.keycloak.models.credential.OTPCredentialModel;
 import org.mockito.Mockito;
+
+import java.time.Clock;
+
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 public class RealmOtpResourceProviderTest {
 
@@ -243,10 +237,15 @@ public class RealmOtpResourceProviderTest {
     var otpInfo = response.readEntity(OtpInfoDTO.class);
     assertThat(otpInfo.getOtpSetup()).isTrue();
     assertThat(otpInfo.getOtpType()).isEqualTo(OtpType.APP);
+    assertThat(otpInfo.getOtpSecret()).isNull();
+    assertThat(otpInfo.getOtpSecretQrCode()).isNull();
   }
 
   @Test
   public void getOtpSetupInfo_should_return_type_mail_if_mail_2fa_is_configured() {
+    when(appCredentialService.generateSecret()).thenReturn("someSecret");
+    when(appCredentialService.generateQRCodeBase64("someSecret", credentialContext)).thenReturn(
+            "base64EncodedQRCode");
     when(mailCredentialService.is2FAConfigured(credentialContext)).thenReturn(true);
 
     var response = resourceProvider.getOtpSetupInfo("heinrich");
@@ -255,6 +254,8 @@ public class RealmOtpResourceProviderTest {
     var otpInfo = response.readEntity(OtpInfoDTO.class);
     assertThat(otpInfo.getOtpSetup()).isTrue();
     assertThat(otpInfo.getOtpType()).isEqualTo(OtpType.EMAIL);
+    assertThat(otpInfo.getOtpSecret()).isEqualTo("someSecret");
+    assertThat(otpInfo.getOtpSecretQrCode()).isEqualTo("base64EncodedQRCode");
   }
 
   @Test
@@ -275,12 +276,20 @@ public class RealmOtpResourceProviderTest {
   }
 
   @Test
-  public void setupOtp_should_be_conflict_if_mail_otp_is_already_configured() {
-    when(mailCredentialService.is2FAConfigured(credentialContext)).thenReturn(true);
+  public void setupOtp_should_be_created_and_delete_mail_otp_if_mail_otp_is_already_configured() {
+    var otpSetup = new OtpSetupDTO();
+    otpSetup.setSecret("secretSecret");
+    otpSetup.setInitialCode("4711");
+    var credentialModel = mock(OTPCredentialModel.class);
+    when(appCredentialService.createModel("secretSecret", credentialContext)).thenReturn(
+            credentialModel);
+    when((appCredentialService.validate("4711", credentialModel, credentialContext))).thenReturn(
+            true);
 
-    var response = resourceProvider.setupOtp("heinrich", new OtpSetupDTO());
+    var response = resourceProvider.setupOtp("heinrich", otpSetup);
 
-    assertThat(response.getStatus()).isEqualTo(409);
+    assertThat(response.getStatus()).isEqualTo(201);
+    verify(mailCredentialService).deleteCredential(any(CredentialContext.class));
   }
 
 
