@@ -168,11 +168,6 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
     }
 
     var context = new CredentialContext(session, realm, user);
-    if (appCredentialService.is2FAConfigured(context)) {
-      return Response.status(Status.CONFLICT).entity(new Error().error(APP_OTP_ALREADY_ACTIVE))
-          .build();
-    }
-
     var emailAddress = mailSetup.getEmail();
     if (isNull(emailAddress) || emailAddress.isBlank()) {
       return Response.status(Status.BAD_REQUEST).entity(new Error().error(MISSING_PARAMETER_ERROR)
@@ -200,13 +195,13 @@ public class RealmOtpResourceProvider implements RealmResourceProvider {
     }
 
     var context = new CredentialContext(session, realm, user);
-    if (appCredentialService.is2FAConfigured(context)) {
-      return Response.status(Status.CONFLICT).entity(new Error().error(APP_OTP_ALREADY_ACTIVE))
-          .build();
-    }
-
     try {
-      return verifyMailSetup(mailSetup.getInitialCode(), context);
+      var response = verifyMailSetup(mailSetup.getInitialCode(), context);
+      if (response.getStatusInfo().getFamily() == Status.Family.SUCCESSFUL) {
+        appCredentialService.deleteCredentials(context);
+      }
+
+      return response;
     } catch (Exception e) {
       logger.error("failed to verify mail setup", e);
       return Response.status(Status.INTERNAL_SERVER_ERROR)

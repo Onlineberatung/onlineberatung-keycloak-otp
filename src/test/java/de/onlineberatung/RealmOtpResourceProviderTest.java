@@ -147,14 +147,16 @@ public class RealmOtpResourceProviderTest {
   }
 
   @Test
-  public void sendVerification_should_be_conflict_if_2fa_via_app_is_already_configured() {
+  public void sendVerification_should_be_ok_if_2fa_via_app_is_already_configured() {
     var mailSetup = new OtpSetupDTO();
-    when(userProvider.getUserByUsername(realm, "heinrich")).thenReturn(user);
-    when(appCredentialService.is2FAConfigured(credentialContext)).thenReturn(true);
+    mailSetup.setEmail("hk@test.de");
+    var otp = new Otp("123", 450L, 1234567L, "hk@test.de", 0);
+    when(otpService.createOtp("hk@test.de")).thenReturn(otp);
 
     var response = resourceProvider.sendVerificationMail("heinrich", mailSetup);
 
-    assertThat(response.getStatus()).isEqualTo(409);
+    assertThat(response.getStatus()).isEqualTo(200);
+    verify(mailSender).sendOtpCode(otp, credentialContext);
   }
 
   @Test
@@ -165,6 +167,7 @@ public class RealmOtpResourceProviderTest {
     var response = resourceProvider.setupOtpMail("heinrich", mailSetup);
 
     assertThat(response.getStatus()).isEqualTo(400);
+    verify(appCredentialService, never()).deleteCredentials(any(CredentialContext.class));
   }
 
   @Test
@@ -186,6 +189,7 @@ public class RealmOtpResourceProviderTest {
     var otpWithEmailSuccess = response.readEntity(SuccessWithEmail.class);
     assertThat(otpWithEmailSuccess.getEmail()).isEqualTo("hk@test.de");
     verify(mailCredentialService).activate(credentialModel, credentialContext);
+    verify(appCredentialService).deleteCredentials(any(CredentialContext.class));
   }
 
   @Test
@@ -197,10 +201,11 @@ public class RealmOtpResourceProviderTest {
     var response = resourceProvider.setupOtpMail("heinrich", mailSetup);
 
     assertThat(response.getStatus()).isEqualTo(400);
+    verify(appCredentialService, never()).deleteCredentials(any(CredentialContext.class));
   }
 
   @Test
-  public void setupOtpMail_should_return_ok_if_already_configured_for_user() {
+  public void setupOtpMail_should_return_ok_and_delete_app_if_already_configured_for_user() {
     when(userProvider.getUserByUsername(realm, "heinrich")).thenReturn(user);
     var mailSetup = new OtpSetupDTO();
     mailSetup.setInitialCode("1223");
@@ -214,17 +219,26 @@ public class RealmOtpResourceProviderTest {
     var response = resourceProvider.setupOtpMail("heinrich", mailSetup);
 
     assertThat(response.getStatus()).isEqualTo(200);
+    verify(appCredentialService).deleteCredentials(any(CredentialContext.class));
   }
 
   @Test
-  public void setupOtpMail_should_be_conflict_if_2fa_via_app_is_already_configured() {
+  public void setupOtpMail_should_be_created_and_delete_app_if_2fa_via_app_is_already_configured() {
     var mailSetup = new OtpSetupDTO();
+    mailSetup.setInitialCode("1223");
     when(userProvider.getUserByUsername(realm, "heinrich")).thenReturn(user);
-    when(appCredentialService.is2FAConfigured(credentialContext)).thenReturn(true);
+    var otp = new Otp("1223", 1L, 2L, "hk@test.de", 0);
+    var credentialModel = MailOtpCredentialModel.createOtpModel(otp, Clock.systemDefaultZone());
+    when(otpService.validate("1223", otp)).thenReturn(
+            ValidationResult.VALID);
+    when(mailCredentialService.getCredential(credentialContext)).thenReturn(credentialModel);
+    when(mailCredentialService.createCredential(otp, credentialContext)).thenReturn(
+            credentialModel);
 
     var response = resourceProvider.setupOtpMail("heinrich", mailSetup);
 
-    assertThat(response.getStatus()).isEqualTo(409);
+    assertThat(response.getStatus()).isEqualTo(201);
+    verify(appCredentialService).deleteCredentials(any(CredentialContext.class));
   }
 
   @Test
