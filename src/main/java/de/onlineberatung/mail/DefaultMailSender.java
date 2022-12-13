@@ -6,7 +6,6 @@ import de.onlineberatung.otp.OtpMailSender;
 import org.keycloak.email.EmailTemplateProvider;
 import org.keycloak.email.freemarker.FreeMarkerEmailTemplateProvider;
 import org.keycloak.models.UserModel;
-import org.keycloak.theme.FreeMarkerUtil;
 
 import java.util.HashMap;
 
@@ -50,9 +49,7 @@ public class DefaultMailSender implements OtpMailSender {
 
   private EmailTemplateProvider createMailTemplateProvider(CredentialContext context,
       UserModel mailRecipient) {
-    var freeMarker = new FreeMarkerUtil();
-    var emailTemplateProvider = new FreeMarkerEmailTemplateProvider(context.getSession(),
-        freeMarker);
+    var emailTemplateProvider = new FreeMarkerEmailTemplateProvider(context.getSession());
     emailTemplateProvider.setRealm(context.getRealm());
     emailTemplateProvider.setUser(mailRecipient);
     return emailTemplateProvider;
