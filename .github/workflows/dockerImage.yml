@@ -84,7 +84,7 @@ jobs:
           password: ${{ secrets.GH_PACKAGE_RELEASE_TOKEN }}
           registry: ${{ env.DOCKER_REGISTRY }}
           repository: ${{ env.DOCKER_IMAGE }}
-          tags: ${{ env.DOCKER_IMAGE_TAG}}
+          tags: ${{ env.DOCKER_IMAGE_TAG}}${{ if(env.BRANCH == 'develop' || env.BRANCH == 'staging' || env.BRANCH == 'release') }},${{ env.BRANCH }}${{ endif }}
       - name: Hint about the Docker Image Tag if successfull
         if: ${{ success() }}
         run: |
@@ -98,12 +98,3 @@ jobs:
           echo "### Publish Docker image :x:" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- It seems that something has gone wrong" >> $GITHUB_STEP_SUMMARY
-      - name: Run Trivy vulnerability image scanner
-        if: ${{ (matrix.registry == 'ghcr.io') }}
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: '${{ env.DOCKER_REGISTRY }}/${{ env.REPO_NAME_WITHOUT_PREFIX }}:${{ env.DOCKER_IMAGE_TAG }}'
-          format: 'table'
-          exit-code: '1'
-          vuln-type: 'os,library'
-          severity: 'CRITICAL'
