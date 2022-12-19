@@ -1,0 +1,28 @@
+name: Run trivy security scan
+on:
+  workflow_run:
+    workflows: ["Publish Docker image"]
+    types:
+      - completed
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Prepare environment variables
+        run: |
+          echo "REPO_NAME_WITHOUT_PREFIX"=$(echo "${{ github.repository }}" | sed "s/.*\///" | awk -F / '{print tolower($0)}') >> $GITHUB_ENV
+        shell: bash
+
+      - name: Run Trivy vulnerability image scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'ghcr.io/${{ env.REPO_NAME_WITHOUT_PREFIX }}:develop'
+          format: 'table'
+          exit-code: '1'
+          vuln-type: 'os,library'
+          severity: 'CRITICAL'
