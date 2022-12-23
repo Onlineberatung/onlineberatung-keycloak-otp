@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - "develop"
-      - "tsys-release"
     tags:
       - "dockerImage.v.*"
       - "v*"
@@ -97,6 +96,15 @@ jobs:
           echo "### Publish Docker image :x:" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- It seems that something has gone wrong" >> $GITHUB_STEP_SUMMARY
+      - name: Run Trivy vulnerability image scanner
+        if: ${{ (matrix.registry == 'ghcr.io') }}
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ env.DOCKER_REGISTRY }}/${{ env.REPO_NAME_WITHOUT_PREFIX }}:${{ env.DOCKER_IMAGE_TAG }}'
+          format: 'table'
+          exit-code: '1'
+          vuln-type: 'os,library'
+          severity: 'CRITICAL'
       - name: Publish to T-sys if T-sys release
         if: ${{ (github.ref == 'refs/heads/tsys-release') && (matrix.registry == 'ghcr.io') }}
         uses: fjogeleit/http-request-action@v1
