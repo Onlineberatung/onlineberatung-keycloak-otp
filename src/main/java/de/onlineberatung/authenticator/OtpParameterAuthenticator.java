@@ -4,11 +4,11 @@ import static java.util.Objects.isNull;
 
 import de.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.Challenge;
 import de.onlineberatung.keycloak_otp_config_spi.keycloakextension.generated.web.model.OtpType;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
 import java.util.Collections;
 import java.util.List;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.authenticators.directgrant.AbstractDirectGrantAuthenticator;
@@ -55,8 +55,7 @@ public class OtpParameterAuthenticator extends AbstractDirectGrantAuthenticator 
   @Override
   public boolean configuredFor(KeycloakSession keycloakSession, RealmModel realmModel,
       UserModel userModel) {
-    return keycloakSession.userCredentialManager()
-        .isConfiguredFor(realmModel, userModel, OTPCredentialModel.TYPE);
+    return userModel.credentialManager().isConfiguredFor(OTPCredentialModel.TYPE);
   }
 
   @Override

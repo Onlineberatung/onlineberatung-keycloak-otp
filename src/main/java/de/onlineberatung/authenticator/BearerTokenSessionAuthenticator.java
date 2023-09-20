@@ -2,9 +2,9 @@ package de.onlineberatung.authenticator;
 
 import static java.util.Objects.isNull;
 
+import jakarta.ws.rs.ForbiddenException;
+import jakarta.ws.rs.NotAuthorizedException;
 import java.util.Objects;
-import javax.ws.rs.ForbiddenException;
-import javax.ws.rs.NotAuthorizedException;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RoleModel;
 import org.keycloak.services.managers.AppAuthManager.BearerTokenAuthenticator;
