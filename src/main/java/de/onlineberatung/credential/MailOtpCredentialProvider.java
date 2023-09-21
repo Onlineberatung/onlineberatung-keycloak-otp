@@ -91,13 +91,13 @@ public class MailOtpCredentialProvider implements CredentialProvider<MailOtpCred
     if (challengeResponse == null) {
       return false;
     }
-    var credentialModel = user.credentialManager().getStoredCredentialById(credentialInput.getCredentialId());
+    var credentialModel = user.credentialManager()
+        .getStoredCredentialById(credentialInput.getCredentialId());
     var otpCredentialModel = getCredentialFromModel(credentialModel);
     return otpCredentialModel.getOtp().getCode().equals(challengeResponse);
   }
 
-  public void updateCredential(RealmModel realm, UserModel user,
-      MailOtpCredentialModel credentialModel) {
+  public void updateCredential(UserModel user, MailOtpCredentialModel credentialModel) {
     user.credentialManager().updateStoredCredential(credentialModel);
   }
 }

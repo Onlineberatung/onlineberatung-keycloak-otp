@@ -40,7 +40,8 @@ public class AppOtpCredentialService {
 
   public void deleteCredentials(CredentialContext context) {
     var userCredentialManager = context.getUser().credentialManager();
-    var credentials = userCredentialManager.getStoredCredentialsByTypeStream(OTPCredentialModel.TYPE);
+    var credentials = userCredentialManager.getStoredCredentialsByTypeStream(
+        OTPCredentialModel.TYPE);
     credentials.forEach(
         credentialModel -> CredentialHelper.deleteOTPCredential(context.getSession(),
             context.getRealm(), context.getUser(), credentialModel.getId()));

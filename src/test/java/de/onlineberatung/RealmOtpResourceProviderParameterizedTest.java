@@ -73,11 +73,6 @@ public class RealmOtpResourceProviderParameterizedTest {
     when(session.users()).thenReturn(userProvider);
     UserModel user = mock(UserModel.class);
     when(userProvider.getUserByUsername(realm, "heinrich")).thenReturn(user);
-
-
-//    var userCredentialManager = mock(UserCredentialManager.class);
-//    when(session.userCredentialManager()).thenReturn(userCredentialManager);
-//    when(userCredentialManager.isConfiguredFor(any(), any(), any())).thenReturn(false);
     var appCredentialService = mock(AppOtpCredentialService.class);
     resourceProvider = new RealmOtpResourceProvider(session, otpService, mailSender,
         sessionAuthenticator, appCredentialService, credentialService);

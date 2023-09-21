@@ -26,14 +26,14 @@ public class MailOtpCredentialService {
   }
 
   public void update(MailOtpCredentialModel credentialModel, CredentialContext context) {
-    credentialProvider.updateCredential(context.getRealm(), context.getUser(), credentialModel);
+    credentialProvider.updateCredential(context.getUser(), credentialModel);
   }
 
   public void incrementFailedAttempts(MailOtpCredentialModel credentialModel,
       CredentialContext context, int currentAttempts) {
     credentialModel.updateFailedVerifications(currentAttempts + 1);
     credentialModel.updateInternalModel();
-    credentialProvider.updateCredential(context.getRealm(), context.getUser(), credentialModel);
+    credentialProvider.updateCredential(context.getUser(), credentialModel);
   }
 
   public void activate(MailOtpCredentialModel credentialModel, CredentialContext context) {
@@ -41,7 +41,7 @@ public class MailOtpCredentialService {
     credentialModel.updateFailedVerifications(0);
     credentialModel.invalidateCode();
     credentialModel.updateInternalModel();
-    credentialProvider.updateCredential(context.getRealm(), context.getUser(), credentialModel);
+    credentialProvider.updateCredential(context.getUser(), credentialModel);
   }
 
   public MailOtpCredentialModel getCredential(CredentialContext context) {
@@ -61,7 +61,7 @@ public class MailOtpCredentialService {
     credentialModel.updateFailedVerifications(0);
     credentialModel.invalidateCode();
     credentialModel.updateInternalModel();
-    credentialProvider.updateCredential(context.getRealm(), context.getUser(), credentialModel);
+    credentialProvider.updateCredential(context.getUser(), credentialModel);
   }
 
   public boolean is2FAConfigured(CredentialContext context) {
