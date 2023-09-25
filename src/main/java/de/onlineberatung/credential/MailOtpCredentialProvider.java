@@ -9,7 +9,6 @@ import org.keycloak.credential.CredentialModel;
 import org.keycloak.credential.CredentialProvider;
 import org.keycloak.credential.CredentialTypeMetadata;
 import org.keycloak.credential.CredentialTypeMetadataContext;
-import org.keycloak.credential.UserCredentialStore;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserCredentialModel;
@@ -39,16 +38,12 @@ public class MailOtpCredentialProvider implements CredentialProvider<MailOtpCred
     if (credentialModel.getCreatedDate() == null) {
       credentialModel.setCreatedDate(clock.millis());
     }
-    return getCredentialStore().createCredential(realm, user, credentialModel);
+    return user.credentialManager().createStoredCredential(credentialModel);
   }
 
   @Override
   public boolean deleteCredential(RealmModel realm, UserModel user, String credentialId) {
-    return getCredentialStore().removeStoredCredential(realm, user, credentialId);
-  }
-
-  private UserCredentialStore getCredentialStore() {
-    return session.userCredentialManager();
+    return user.credentialManager().removeStoredCredentialById(credentialId);
   }
 
   @Override
@@ -79,7 +74,7 @@ public class MailOtpCredentialProvider implements CredentialProvider<MailOtpCred
     if (!supportsCredentialType(credentialType)) {
       return false;
     }
-    return getCredentialStore().getStoredCredentialsByTypeStream(realm, user, credentialType)
+    return user.credentialManager().getStoredCredentialsByTypeStream(credentialType)
         .findFirst().isPresent();
   }
 
@@ -96,14 +91,13 @@ public class MailOtpCredentialProvider implements CredentialProvider<MailOtpCred
     if (challengeResponse == null) {
       return false;
     }
-    var credentialModel = getCredentialStore().getStoredCredentialById(realm, user,
-        credentialInput.getCredentialId());
+    var credentialModel = user.credentialManager()
+        .getStoredCredentialById(credentialInput.getCredentialId());
     var otpCredentialModel = getCredentialFromModel(credentialModel);
     return otpCredentialModel.getOtp().getCode().equals(challengeResponse);
   }
 
-  public void updateCredential(RealmModel realm, UserModel user,
-      MailOtpCredentialModel credentialModel) {
-    getCredentialStore().updateCredential(realm, user, credentialModel);
+  public void updateCredential(UserModel user, MailOtpCredentialModel credentialModel) {
+    user.credentialManager().updateStoredCredential(credentialModel);
   }
 }

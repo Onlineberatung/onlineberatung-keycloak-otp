@@ -29,8 +29,7 @@ public class AppOtpCredentialService {
   }
 
   public boolean is2FAConfigured(CredentialContext context) {
-    return context.getSession().userCredentialManager()
-        .isConfiguredFor(context.getRealm(), context.getUser(), OTPCredentialModel.TYPE);
+    return context.getUser().credentialManager().isConfiguredFor(OTPCredentialModel.TYPE);
   }
 
   public boolean validate(String otp, OTPCredentialModel credentialModel,
@@ -40,9 +39,9 @@ public class AppOtpCredentialService {
   }
 
   public void deleteCredentials(CredentialContext context) {
-    var userCredentialManager = context.getSession().userCredentialManager();
+    var userCredentialManager = context.getUser().credentialManager();
     var credentials = userCredentialManager.getStoredCredentialsByTypeStream(
-        context.getRealm(), context.getUser(), OTPCredentialModel.TYPE);
+        OTPCredentialModel.TYPE);
     credentials.forEach(
         credentialModel -> CredentialHelper.deleteOTPCredential(context.getSession(),
             context.getRealm(), context.getUser(), credentialModel.getId()));

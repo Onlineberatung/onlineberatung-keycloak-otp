@@ -1,9 +1,9 @@
 package de.onlineberatung.log;
 
+import jakarta.ws.rs.core.Cookie;
+import jakarta.ws.rs.core.HttpHeaders;
+import jakarta.ws.rs.core.UriInfo;
 import java.util.Map;
-import javax.ws.rs.core.Cookie;
-import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.UriInfo;
 import org.jboss.logging.Logger;
 import org.keycloak.common.util.StackUtil;
 import org.keycloak.events.Event;
@@ -169,7 +169,7 @@ public class LoggingEventListenerProvider implements EventListenerProvider {
       } else {
         sb.append(", ");
       }
-      sb.append(cookieEntry.getValue().toString());
+      sb.append(cookieEntry.getValue());
     }
     sb.append("]");
   }

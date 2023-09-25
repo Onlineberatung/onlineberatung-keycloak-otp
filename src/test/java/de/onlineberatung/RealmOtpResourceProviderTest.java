@@ -230,10 +230,10 @@ public class RealmOtpResourceProviderTest {
     var otp = new Otp("1223", 1L, 2L, "hk@test.de", 0);
     var credentialModel = MailOtpCredentialModel.createOtpModel(otp, Clock.systemDefaultZone());
     when(otpService.validate("1223", otp)).thenReturn(
-            ValidationResult.VALID);
+        ValidationResult.VALID);
     when(mailCredentialService.getCredential(credentialContext)).thenReturn(credentialModel);
     when(mailCredentialService.createCredential(otp, credentialContext)).thenReturn(
-            credentialModel);
+        credentialModel);
 
     var response = resourceProvider.setupOtpMail("heinrich", mailSetup);
 
@@ -259,7 +259,7 @@ public class RealmOtpResourceProviderTest {
   public void getOtpSetupInfo_should_return_type_mail_if_mail_2fa_is_configured() {
     when(appCredentialService.generateSecret()).thenReturn("someSecret");
     when(appCredentialService.generateQRCodeBase64("someSecret", credentialContext)).thenReturn(
-            "base64EncodedQRCode");
+        "base64EncodedQRCode");
     when(mailCredentialService.is2FAConfigured(credentialContext)).thenReturn(true);
 
     var response = resourceProvider.getOtpSetupInfo("heinrich");
@@ -296,9 +296,9 @@ public class RealmOtpResourceProviderTest {
     otpSetup.setInitialCode("4711");
     var credentialModel = mock(OTPCredentialModel.class);
     when(appCredentialService.createModel("secretSecret", credentialContext)).thenReturn(
-            credentialModel);
+        credentialModel);
     when((appCredentialService.validate("4711", credentialModel, credentialContext))).thenReturn(
-            true);
+        true);
 
     var response = resourceProvider.setupOtp("heinrich", otpSetup);
 

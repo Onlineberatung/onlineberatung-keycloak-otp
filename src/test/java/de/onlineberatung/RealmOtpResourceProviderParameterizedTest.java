@@ -25,7 +25,6 @@ import org.junit.runners.Parameterized.Parameters;
 import org.keycloak.models.KeycloakContext;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
-import org.keycloak.models.UserCredentialManager;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.UserProvider;
 
@@ -74,9 +73,6 @@ public class RealmOtpResourceProviderParameterizedTest {
     when(session.users()).thenReturn(userProvider);
     UserModel user = mock(UserModel.class);
     when(userProvider.getUserByUsername(realm, "heinrich")).thenReturn(user);
-    var userCredentialManager = mock(UserCredentialManager.class);
-    when(session.userCredentialManager()).thenReturn(userCredentialManager);
-    when(userCredentialManager.isConfiguredFor(any(), any(), any())).thenReturn(false);
     var appCredentialService = mock(AppOtpCredentialService.class);
     resourceProvider = new RealmOtpResourceProvider(session, otpService, mailSender,
         sessionAuthenticator, appCredentialService, credentialService);

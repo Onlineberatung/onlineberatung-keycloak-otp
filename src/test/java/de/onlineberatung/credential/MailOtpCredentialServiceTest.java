@@ -20,14 +20,13 @@ import org.mockito.stubbing.Answer;
 public class MailOtpCredentialServiceTest {
 
   private MailOtpCredentialService credentialService;
-  private RealmModel realm;
   private UserModel user;
   private CredentialContext credentialContext;
   private MailOtpCredentialProvider credentialProvider;
 
   @Before
   public void setUp() {
-    realm = mock(RealmModel.class);
+    RealmModel realm = mock(RealmModel.class);
     KeycloakSession session = mock(KeycloakSession.class);
     user = mock(UserModel.class);
     credentialContext = new CredentialContext(session, realm, user);
@@ -52,7 +51,7 @@ public class MailOtpCredentialServiceTest {
     AssertionsForClassTypes.assertThat(credential.getOtp().getFailedVerifications()).isZero();
     AssertionsForClassTypes
         .assertThat(credential.getOtp().getCode()).isEqualTo(MailOtpCredentialModel.INVALIDATED);
-    verify(credentialProvider).updateCredential(realm, user, credential);
+    verify(credentialProvider).updateCredential(user, credential);
   }
 
   @Test
@@ -65,7 +64,7 @@ public class MailOtpCredentialServiceTest {
     AssertionsForClassTypes.assertThat(credential.getOtp().getFailedVerifications()).isZero();
     AssertionsForClassTypes
         .assertThat(credential.getOtp().getCode()).isEqualTo(MailOtpCredentialModel.INVALIDATED);
-    verify(credentialProvider).updateCredential(realm, user, credential);
+    verify(credentialProvider).updateCredential(user, credential);
   }
 
   @Test
@@ -77,6 +76,6 @@ public class MailOtpCredentialServiceTest {
         otp.getFailedVerifications());
 
     AssertionsForClassTypes.assertThat(credential.getOtp().getFailedVerifications()).isEqualTo(1);
-    verify(credentialProvider).updateCredential(realm, user, credential);
+    verify(credentialProvider).updateCredential(user, credential);
   }
 }

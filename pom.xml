@@ -10,9 +10,9 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.source>11</maven.compiler.source>
-    <maven.compiler.target>11</maven.compiler.target>
-    <keycloak.version>20.0.0</keycloak.version>
+    <maven.compiler.source>17</maven.compiler.source>
+    <maven.compiler.target>17</maven.compiler.target>
+    <keycloak.version>22.0.3</keycloak.version>
   </properties>
 
   <dependencies>
@@ -21,11 +21,23 @@
       <artifactId>openapi-generator-maven-plugin</artifactId>
       <version>6.2.0</version>
       <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.yaml</groupId>
+          <artifactId>snakeyaml</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
       <version>2.14.0-rc2</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.yaml</groupId>
+          <artifactId>snakeyaml</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.keycloak</groupId>
@@ -44,6 +56,12 @@
       <artifactId>keycloak-server-spi-private</artifactId>
       <version>${keycloak.version}</version>
       <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.yaml</groupId>
+          <artifactId>snakeyaml</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.keycloak</groupId>
@@ -57,6 +75,12 @@
       <groupId>com.openshift</groupId>
       <artifactId>openshift-restclient-java</artifactId>
       <version>9.0.5.Final</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.yaml</groupId>
+          <artifactId>snakeyaml</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
@@ -76,6 +100,12 @@
       <artifactId>mockito-core</artifactId>
       <version>4.8.0</version>
       <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.yaml</groupId>
+      <artifactId>snakeyaml</artifactId>
+      <version>2.0</version>
     </dependency>
 
   </dependencies>
