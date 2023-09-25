@@ -6,6 +6,7 @@ on:
       - "develop"
       - "staging"
       - "release"
+      - "tsys-release"
     tags:
       - "dockerImage.v.*"
       - "v*"
@@ -150,6 +151,13 @@ jobs:
           exit-code: '1'
           vuln-type: 'os,library'
           severity: 'CRITICAL'
+      - name: Publish to T-sys if T-sys release
+        if: ${{ (github.ref == 'refs/heads/tsys-release') && (matrix.registry == 'ghcr.io') }}
+        uses: fjogeleit/http-request-action@v1
+        with:
+          url: 'https://git.mms-support.de/api/v4/projects/${{ secrets.TSYS_SERVICE_ID }}/repository/tags?ref=master&tag_name=${{ env.DOCKER_IMAGE_TAG }}'
+          method: 'POST'
+          customHeaders: '{"PRIVATE-TOKEN": "${{ secrets.TSYS_ACCESS_TOKEN }}"}'
       - name: Microsoft Teams Fail Card
         if: ${{ (env.FAIL_WEBHOOK_SECRET != null) && (env.FAIL_WEBHOOK_SECRET != '') && (matrix.registry == 'ghcr.io') && (failure() || cancelled()) }}
         uses: toko-bifrost/ms-teams-deploy-card@3.1.2
