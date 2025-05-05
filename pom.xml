@@ -12,14 +12,14 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.source>17</maven.compiler.source>
     <maven.compiler.target>17</maven.compiler.target>
-    <keycloak.version>22.0.3</keycloak.version>
+    <keycloak.version>26.0.0</keycloak.version>
   </properties>
 
   <dependencies>
     <dependency>
       <groupId>org.openapitools</groupId>
       <artifactId>openapi-generator-maven-plugin</artifactId>
-      <version>6.2.0</version>
+      <version>7.1.0</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
